@@ -46,8 +46,6 @@
             width: 100%;
             height: 100%;
             z-index: 1;
-        }
-        .piece:hover {
             cursor: grab;
         }
     </style>
@@ -385,6 +383,7 @@
                     docSquare.firstChild.onmousedown = function(e) {
                         draggingPiece = e.currentTarget;
                         draggingPiece.style.zIndex = 2;
+                        draggingPiece.style.cursor = "grabbing";
                         docBoard.onmousemove = function(e) {
                             const docSquareClientRect = draggingPiece.parentElement.getBoundingClientRect();
                             draggingPiece.style.left = e.clientX - docSquareClientRect.x - docSquareClientRect.width/2;
@@ -402,12 +401,13 @@
                                     toSquareId = docSquare.id;
                             }
                             let changedSquareIds = null;
-                            if (toSquareId !== null)
+                            if ((toSquareId !== null) && (fromSquareId !== toSquareId))
                                 changedSquareIds = board.movePiece(fromSquareId, toSquareId);
                             if (changedSquareIds === null) {
                                 draggingPiece.style.left = 0;
                                 draggingPiece.style.top = 0;
                                 draggingPiece.style.zIndex = 1;
+                                draggingPiece.style.cursor = "grab";
                             }
                             else
                                 updateDocBoard(changedSquareIds);
