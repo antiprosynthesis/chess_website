@@ -10,6 +10,7 @@
             --squareBlackColor: hsl(26, 38%, 55%);
         }
         body {
+            overflow: hidden;
             margin: 0px;
             background-color: var(--backgroundColor);
         }
@@ -28,6 +29,10 @@
         .square {
             position: relative;
         }
+        /* .square:hover {
+            outline: 10px solid #fff;
+            outline-offset: -10px;
+        } */
         .squareWhite {
             background-color: var(--squareWhiteColor);
         }
@@ -289,7 +294,10 @@
             }
 
             movePiece(fromSquareId, toSquareId) {
-                
+                // TODO: validate move first
+                this.setPiece(toSquareId, this.getPiece(fromSquareId));
+                this.setPiece(fromSquareId, null);
+                return [fromSquareId, toSquareId];
             }
 
             getPiece(squareId) {
@@ -376,6 +384,7 @@
                     docSquare.innerHTML = "<svg id=\"piece_" + pieceId + "\" class=\"piece\"><use href=\"#piece_" + piece + "\"/></svg>";
                     docSquare.firstChild.onmousedown = function(e) {
                         draggingPiece = e.currentTarget;
+                        draggingPiece.style.zIndex = 2;
                         docBoard.onmousemove = function(e) {
                             const docSquareClientRect = draggingPiece.parentElement.getBoundingClientRect();
                             draggingPiece.style.left = e.clientX - docSquareClientRect.x - docSquareClientRect.width/2;
@@ -385,9 +394,23 @@
                         docBoard.onmouseup = function(e) {
                             docBoard.onmousemove = null;
                             docBoard.onmouseup = null;
-                            // TODO: validate move. simply reverting move for now
-                            draggingPiece.style.left = 0;
-                            draggingPiece.style.top = 0;
+                            const fromSquareId = draggingPiece.parentElement.id;
+                            let toSquareId = null;
+                            for (const docSquare of docBoard.children) {
+                                const docSquareClientRect = docSquare.getBoundingClientRect();
+                                if ((e.clientX >= docSquareClientRect.left) && (e.clientX < docSquareClientRect.right) && (e.clientY >= docSquareClientRect.top) && (e.clientY < docSquareClientRect.bottom))
+                                    toSquareId = docSquare.id;
+                            }
+                            let changedSquareIds = null;
+                            if (toSquareId !== null)
+                                changedSquareIds = board.movePiece(fromSquareId, toSquareId);
+                            if (changedSquareIds === null) {
+                                draggingPiece.style.left = 0;
+                                draggingPiece.style.top = 0;
+                                draggingPiece.style.zIndex = 1;
+                            }
+                            else
+                                updateDocBoard(changedSquareIds);
                             draggingPiece = null;
                         }
                     }
@@ -399,7 +422,7 @@
                 return;
             }
             for (const squareId of changedSquareIds)
-                updateDocSquare(docBoard.getElementById(squareId));
+                updateDocSquare(document.getElementById(squareId)); // TODO: can convert id to child index and access child directly
         }
 
         updateDocBoard();
