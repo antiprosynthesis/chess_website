@@ -3,13 +3,52 @@
 <head>
     <title>Chess Tutor</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        :root {
+            --backgroundColor: hsl(0, 0%, 25%);
+            --squareWhiteColor: hsl(37, 63%, 81%);
+            --squareBlackColor: hsl(26, 38%, 55%);
+        }
+        body {
+            margin: 0px;
+            background-color: var(--backgroundColor);
+        }
+        #boardArea {
+            width: 100vw;
+            height: 100vh;
+        }
+        #board {
+            aspect-ratio: 1;
+            margin: auto;
+            max-height: 100%;
+            display: grid;
+            grid-template-columns: auto auto auto auto auto auto auto auto;
+            caret-color: transparent;
+        }
+        .square {
+            position: relative;
+        }
+        .squareWhite {
+            background-color: var(--squareWhiteColor);
+        }
+        .squareBlack {
+            background-color: var(--squareBlackColor);
+        }
+        .piece {
+            position: absolute;
+            left: 0px;
+            top: 0px;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        .piece:hover {
+            cursor: grab;
+        }
+    </style>
 </head>
 <body>
     <svg display="none">
-        <symbol id="svgBoard" viewBox="0 0 8 8">
-            <rect id="whiteSquares" width="8" height="8" shape-rendering="crispEdges" style="fill: white;"/>
-            <path id="blackSquares"d="M0,0V8H1V0zM2,0V8H3V0zM4,0V8H5V0zM6,0V8H7V0zM0,0H8V1H0zM0,2H8V3H0zM0,4H8V5H0zM0,6H8V7H0z" fill-rule="evenodd" shape-rendering="crispEdges" style="fill: black;"/>
-        </symbol>
         <symbol id="piece_K" viewBox="0 0 45 45" style="fill:none; fill-opacity:1; fill-rule:evenodd; stroke:#000000; stroke-width:1.5; stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4; stroke-dasharray:none; stroke-opacity:1;" transform="translate(0,0)">
             <path
             d="M 22.5,11.63 L 22.5,6"
@@ -238,48 +277,6 @@
             style="opacity:1; fill:#000000; fill-opacity:1; fill-rule:nonzero; stroke:#000000; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:miter; stroke-miterlimit:4; stroke-dasharray:none; stroke-opacity:1;" />
         </symbol>
     </svg>
-    <style>
-        :root {
-            --backgroundColor: hsl(0, 0%, 25%);
-            --squareWhiteColor: hsl(37, 63%, 81%);
-            --squareBlackColor: hsl(26, 38%, 55%);
-        }
-        body {
-            margin: 0px;
-            background-color: var(--backgroundColor);
-        }
-        #boardArea {
-            width: 100vw;
-            height: 100vh;
-        }
-        #board {
-            aspect-ratio: 1;
-            max-height: 100%;
-            display: grid;
-            grid-template-columns: auto auto auto auto auto auto auto auto;
-            caret-color: transparent;
-        }
-        .square {
-            position: relative;
-        }
-        .squareWhite {
-            background-color: var(--squareWhiteColor);
-        }
-        .squareBlack {
-            background-color: var(--squareBlackColor);
-        }
-        .piece {
-            position: absolute;
-            left: 0px;
-            top: 0px;
-            width: 100%;
-            height: 100%;
-            z-index: 1;
-        }
-        .piece:hover {
-            cursor: grab;
-        }
-    </style>
     <script>
         "use strict";
 
@@ -349,34 +346,63 @@
         board.setPiece("f8", "b");
         board.setPiece("g8", "n");
         board.setPiece("h8", "r");
-    </script>
-    <div id="boardArea">
-        <div id="board"></div>
-    </div>
-    <script>
-        let squaresHtml = "";
-        for (let y = 0; y < 8; ++y)
-            for (let x = 0; x < 8; ++x)
-                squaresHtml += "<div id=\"" + String.fromCharCode("a".charCodeAt(0) + x) + (8 - y).toString() + "\" class=\"square" + (((x & 1) !== (y & 1)) ? "Black" : "White") + " square\"></div>";
-        document.getElementById("board").innerHTML = squaresHtml;
 
-        function updateBoard(changedSquareIds = null) {
-            const docBoard = document.getElementById("board");
-            if (changedSquareIds === null) {
-                const squares = docBoard.children;
-                for (const square of squares) {
-                    const piece = board.getPiece(square.id);
-                    square.innerHTML = (piece === null) ? "" : "<svg class=\"piece\"><use href=\"#piece_" + piece + "\" /></svg>";
-                }
-                return;
-            }
-            for (const squareId of changedSquareIds) {
-                const piece = board.getPiece(squareId);
-                docBoard.getElementById(squareId).innerHTML = (piece === null) ? "" : "<svg class=\"piece\"><use href=\"#piece_" + piece + "\" /></svg>";
+        const docBoardArea = document.createElement("div");
+        docBoardArea.id = "boardArea";
+        document.body.appendChild(docBoardArea);
+
+        const docBoard = document.createElement("div");
+        docBoard.id = "board";
+        docBoardArea.appendChild(docBoard);
+
+        for (let y = 0; y < 8; ++y) {
+            for (let x = 0; x < 8; ++x) {
+                const docSquare = document.createElement("div");
+                docSquare.id = String.fromCharCode("a".charCodeAt(0) + x) + (8 - y).toString();
+                docSquare.className = "square" + (((x & 1) !== (y & 1)) ? "Black" : "White") + " square";
+                docBoard.appendChild(docSquare);
             }
         }
 
-        updateBoard();
+        let draggingPiece = null;
+
+        function updateDocBoard(changedSquareIds = null) {
+            const updateDocSquare = function(docSquare) {
+                const piece = board.getPiece(docSquare.id);
+                if (piece === null)
+                    docSquare.replaceChildren();
+                else {
+                    const pieceId = piece + docSquare.id;
+                    docSquare.innerHTML = "<svg id=\"piece_" + pieceId + "\" class=\"piece\"><use href=\"#piece_" + piece + "\"/></svg>";
+                    docSquare.firstChild.onmousedown = function(e) {
+                        draggingPiece = e.currentTarget;
+                        docBoard.onmousemove = function(e) {
+                            const docSquareClientRect = draggingPiece.parentElement.getBoundingClientRect();
+                            draggingPiece.style.left = e.clientX - docSquareClientRect.x - docSquareClientRect.width/2;
+                            draggingPiece.style.top = e.clientY - docSquareClientRect.y - docSquareClientRect.height/2;
+                        }
+                        docBoard.onmousemove(e);
+                        docBoard.onmouseup = function(e) {
+                            docBoard.onmousemove = null;
+                            docBoard.onmouseup = null;
+                            // TODO: validate move. simply reverting move for now
+                            draggingPiece.style.left = 0;
+                            draggingPiece.style.top = 0;
+                            draggingPiece = null;
+                        }
+                    }
+                }
+            };
+            if (changedSquareIds === null) {
+                for (const docSquare of docBoard.children)
+                    updateDocSquare(docSquare);
+                return;
+            }
+            for (const squareId of changedSquareIds)
+                updateDocSquare(docBoard.getElementById(squareId));
+        }
+
+        updateDocBoard();
     </script>
 </body>
 </html>
