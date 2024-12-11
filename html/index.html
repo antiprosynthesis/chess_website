@@ -283,6 +283,19 @@
     <script>
         "use strict";
 
+        class Piece {
+            constructor(type) {
+                this.type = type;
+            }
+
+            isBlack() {
+                return (type === type.toLowerCase());
+            }
+            isWhite() {
+                return !isBlack();
+            }
+        }
+
         class Board {
             constructor()
             {
@@ -292,6 +305,12 @@
             }
 
             movePiece(fromSquareId, toSquareId) {
+                if (fromSquareId === toSquareId)
+                    return null;
+                const fromPiece = this.getPiece(fromSquareId);
+                const toPiece = this.getPiece(toSquareId);
+                if (fromPiece === null)
+                    return null;
                 // TODO: validate move first
                 this.setPiece(toSquareId, this.getPiece(fromSquareId));
                 this.setPiece(fromSquareId, null);
@@ -299,59 +318,80 @@
             }
 
             getPiece(squareId) {
-                return this.squares[Board.toSquareIndex(squareId)];
+                return this.squares[Board.squareIdToIndex(squareId)];
             }
             setPiece(squareId, piece) {
-                this.squares[Board.toSquareIndex(squareId)] = piece;
+                this.squares[Board.squareIdToIndex(squareId)] = piece;
             }
 
-            static toSquareIndex(squareId) {
-                const x = squareId.charCodeAt(0) - "a".charCodeAt(0);
-                const y = squareId.charCodeAt(1) - "1".charCodeAt(0);
-                return y*8 + x;
+            static isSquareBlack(squareId) {
+                return ((Board.squareIdToX(squareId) & 1) === (Board.squareIdToY(squareId) & 1));
             }
-            static toSquareId(squareIndex) {
-                const y = ~~(squareIndex/8);
-                const x = squareIndex % 8;
+            static isSquareWhite(squareId) {
+                return !isSquareBlack;
+            }
+
+            static squareIdToX(id) {
+                return id.charCodeAt(0) - "a".charCodeAt(0);
+            }
+            static squareIdToY(id) {
+                return id.charCodeAt(1) - "1".charCodeAt(0);
+            }
+            static squareXyToId(x, y) {
                 return String.fromCharCode("a".charCodeAt(0) + x) + String.fromCharCode("1".charCodeAt(0) + y);
             }
 
-            squares;
+            static squareXyToIndex(x, y) {
+                return y*8 + x;
+            }
+            static squareIndexToX(index) {
+                return index % 8;
+            }
+            static squareIndexToY(index) {
+                return ~~(index/8);
+            }
+
+            static squareIdToIndex(id) {
+                return Board.squareXyToIndex(Board.squareIdToX(id), Board.squareIdToY(id));
+            }
+            static squareIndexToId(index) {
+                return Board.squareXyToIndex(Board.squareIndexToX(index), Board.squareIndexToY(index));
+            }
         }
 
         const board = new Board();
-        board.setPiece("a1", "R");
-        board.setPiece("b1", "N");
-        board.setPiece("c1", "B");
-        board.setPiece("d1", "Q");
-        board.setPiece("e1", "K");
-        board.setPiece("f1", "B");
-        board.setPiece("g1", "N");
-        board.setPiece("h1", "R");
-        board.setPiece("a2", "P");
-        board.setPiece("b2", "P");
-        board.setPiece("c2", "P");
-        board.setPiece("d2", "P");
-        board.setPiece("e2", "P");
-        board.setPiece("f2", "P");
-        board.setPiece("g2", "P");
-        board.setPiece("h2", "P");
-        board.setPiece("a7", "p");
-        board.setPiece("b7", "p");
-        board.setPiece("c7", "p");
-        board.setPiece("d7", "p");
-        board.setPiece("e7", "p");
-        board.setPiece("f7", "p");
-        board.setPiece("g7", "p");
-        board.setPiece("h7", "p");
-        board.setPiece("a8", "r");
-        board.setPiece("b8", "n");
-        board.setPiece("c8", "b");
-        board.setPiece("d8", "q");
-        board.setPiece("e8", "k");
-        board.setPiece("f8", "b");
-        board.setPiece("g8", "n");
-        board.setPiece("h8", "r");
+        board.setPiece("a1", new Piece("R"));
+        board.setPiece("b1", new Piece("N"));
+        board.setPiece("c1", new Piece("B"));
+        board.setPiece("d1", new Piece("Q"));
+        board.setPiece("e1", new Piece("K"));
+        board.setPiece("f1", new Piece("B"));
+        board.setPiece("g1", new Piece("N"));
+        board.setPiece("h1", new Piece("R"));
+        board.setPiece("a2", new Piece("P"));
+        board.setPiece("b2", new Piece("P"));
+        board.setPiece("c2", new Piece("P"));
+        board.setPiece("d2", new Piece("P"));
+        board.setPiece("e2", new Piece("P"));
+        board.setPiece("f2", new Piece("P"));
+        board.setPiece("g2", new Piece("P"));
+        board.setPiece("h2", new Piece("P"));
+        board.setPiece("a7", new Piece("p"));
+        board.setPiece("b7", new Piece("p"));
+        board.setPiece("c7", new Piece("p"));
+        board.setPiece("d7", new Piece("p"));
+        board.setPiece("e7", new Piece("p"));
+        board.setPiece("f7", new Piece("p"));
+        board.setPiece("g7", new Piece("p"));
+        board.setPiece("h7", new Piece("p"));
+        board.setPiece("a8", new Piece("r"));
+        board.setPiece("b8", new Piece("n"));
+        board.setPiece("c8", new Piece("b"));
+        board.setPiece("d8", new Piece("q"));
+        board.setPiece("e8", new Piece("k"));
+        board.setPiece("f8", new Piece("b"));
+        board.setPiece("g8", new Piece("n"));
+        board.setPiece("h8", new Piece("r"));
 
         const docBoardArea = document.createElement("div");
         docBoardArea.id = "boardArea";
@@ -364,8 +404,8 @@
         for (let y = 0; y < 8; ++y) {
             for (let x = 0; x < 8; ++x) {
                 const docSquare = document.createElement("div");
-                docSquare.id = String.fromCharCode("a".charCodeAt(0) + x) + (8 - y).toString();
-                docSquare.className = "square" + (((x & 1) !== (y & 1)) ? "Black" : "White") + " square";
+                docSquare.id = Board.squareXyToId(x, 8 - 1 - y);
+                docSquare.className = "square" + (Board.isSquareBlack(docSquare.id) ? "Black" : "White") + " square";
                 docBoard.appendChild(docSquare);
             }
         }
@@ -378,8 +418,7 @@
                 if (piece === null)
                     docSquare.replaceChildren();
                 else {
-                    const pieceId = piece + docSquare.id;
-                    docSquare.innerHTML = "<svg id=\"piece_" + pieceId + "\" class=\"piece\"><use href=\"#piece_" + piece + "\"/></svg>";
+                    docSquare.innerHTML = "<svg class=\"piece\"><use href=\"#piece_" + piece.type + "\"/></svg>";
                     docSquare.firstChild.onmousedown = function(e) {
                         draggingPiece = e.currentTarget;
                         draggingPiece.style.zIndex = 2;
