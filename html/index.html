@@ -358,6 +358,7 @@
                 }
                 if (!valid)
                     return null; // not a valid basic move
+                // TODO: castling, en passant, promotion, check
                 piece.moved = true;
                 this.squares[Board.squareXyToIndex(toSquareX, toSquareY)] = piece;
                 this.squares[Board.squareXyToIndex(squareX, squareY)] = null;
