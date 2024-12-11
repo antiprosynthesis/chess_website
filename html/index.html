@@ -286,35 +286,82 @@
         class Piece {
             constructor(type) {
                 this.type = type;
+                this.moved = false;
             }
 
             isBlack() {
-                return (type === type.toLowerCase());
+                return (this.type === this.type.toLowerCase());
             }
             isWhite() {
                 return !isBlack();
             }
+
+            getBasicMoves(capture = false) {
+                switch (this.type) {
+                    case "K": case "k":
+                        return { steps: [[0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1], [1, 0], [1, 1]], maxSteps: 1 };
+                    case "Q": case "q":
+                        return { steps: [[0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1], [1, 0], [1, 1]], maxSteps: 8 - 1 };
+                    case "R": case "r":
+                        return { steps: [[0, 1], [-1, 0], [0, -1], [1, 0]], maxSteps: 8 - 1 };
+                    case "B": case "b":
+                        return { steps: [[-1, 1], [-1, -1], [1, -1], [1, 1]], maxSteps: 8 - 1 };
+                    case "N": case "n":
+                        return { steps: [[-1, 2], [-2, 1], [-2, -1], [-1, -2], [1, -2], [2, -1], [2, 1], [1, 2]], maxSteps: 1 };
+                    case "P":
+                        return { steps: capture ? [[-1, 1], [1, 1]] : [[0, 1]], maxSteps: (this.moved || capture) ? 1 : 2 };
+                    case "p":
+                        return { steps: capture ? [[1, -1], [-1, -1]] : [[0, -1]], maxSteps: (this.moved || capture) ? 1 : 2 };
+                    default:
+                        return null;
+                }
+            }
         }
 
         class Board {
-            constructor()
-            {
+            constructor() {
                 this.squares = [];
                 for (let i = 0; i < 8*8; ++i)
                     this.squares.push(null);
             }
 
-            movePiece(fromSquareId, toSquareId) {
-                if (fromSquareId === toSquareId)
-                    return null;
-                const fromPiece = this.getPiece(fromSquareId);
-                const toPiece = this.getPiece(toSquareId);
-                if (fromPiece === null)
-                    return null;
-                // TODO: validate move first
-                this.setPiece(toSquareId, this.getPiece(fromSquareId));
-                this.setPiece(fromSquareId, null);
-                return [fromSquareId, toSquareId];
+            movePiece(squareId, toSquareId) {
+                if (squareId === toSquareId)
+                    return null; // move to same square
+                const squareX = Board.squareIdToX(squareId);
+                const squareY = Board.squareIdToY(squareId);
+                const toSquareX = Board.squareIdToX(toSquareId);
+                const toSquareY = Board.squareIdToY(toSquareId);
+                const piece = this.squares[Board.squareXyToIndex(squareX, squareY)];
+                if (piece === null)
+                    return null; // no piece to move
+                const toPiece = this.squares[Board.squareXyToIndex(toSquareX, toSquareY)];
+                if ((toPiece !== null) && (piece.isBlack() === toPiece.isBlack()))
+                    return null; // move to square with same color piece
+                const basicMoves = piece.getBasicMoves(toPiece !== null);
+                let valid = false;
+                for (const basicSteps of basicMoves.steps) {
+                    let pieceX = squareX;
+                    let pieceY = squareY;
+                    for (let step = 1; step <= basicMoves.maxSteps; ++step) {
+                        pieceX += basicSteps[0];
+                        pieceY += basicSteps[1];
+                        if ((pieceX === toSquareX) && (pieceY === toSquareY)) {
+                            valid = true;
+                            break;
+                        }
+                        if ((pieceX < 0) || (pieceY < 0) || (pieceX >= 8) || (pieceY >= 8))
+                            break;
+                        if (this.squares[Board.squareXyToIndex(pieceX, pieceY)] !== null)
+                            break;
+                    }
+                }
+                if (!valid)
+                    return null; // not a valid basic move
+                piece.moved = true;
+                this.squares[Board.squareXyToIndex(toSquareX, toSquareY)] = piece;
+                this.squares[Board.squareXyToIndex(squareX, squareY)] = null;
+                return [squareId, toSquareId];
             }
 
             getPiece(squareId) {
