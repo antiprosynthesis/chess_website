@@ -467,7 +467,6 @@
                 if (piece === null) {
                     docSquare.replaceChildren();
                     docSquare.onclick = function(e) {
-                        console.log("docSquare.onclick");
                         e.preventDefault();
                         e.stopPropagation();
                         if (movingPiece === null)
@@ -489,7 +488,6 @@
                         e.stopPropagation();
                     }
                     docPiece.onpointerdown = function(e) {
-                        console.log("docPiece.onpointerdown");
                         e.preventDefault();
                         e.stopPropagation();
                         if (movingPiece !== null) {
@@ -508,7 +506,7 @@
                         movingPiece.style.zIndex = 2;
                         movingPiece.style.cursor = "grabbing";
                         docBoard.onpointermove = function(e) {
-                            console.log("docBoard.onpointermove");
+                            e = e || window.event;
                             e.preventDefault();
                             e.stopPropagation();
                             if (movingPiece === null)
@@ -518,7 +516,7 @@
                             movingPiece.style.top = e.clientY - fromSquareClientRect.y - fromSquareClientRect.height/2;
                         }
                         docBoard.onpointerup = function(e) {
-                            console.log("docBoard.onpointerup");
+                            e = e || window.event;
                             e.preventDefault();
                             e.stopPropagation();
                             docBoard.onpointermove = null;
