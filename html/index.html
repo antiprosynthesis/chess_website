@@ -494,11 +494,13 @@
                             const fromSquare = movingPiece.parentElement;
                             fromSquare.style.backgroundColor = getStyleRoot().getPropertyValue(Board.isSquareBlack(fromSquare.id) ? "--squareBlackColor" : "--squareWhiteColor");
                             const toSquare = e.currentTarget.parentElement;
-                            const changedSquareIds = board.movePiece(fromSquare.id, toSquare.id);
-                            if (changedSquareIds !== null)
-                                updateDocBoard(changedSquareIds);
                             movingPiece = null;
-                            return;
+                            if (board.getPiece(fromSquare.id).isBlack() !== board.getPiece(toSquare.id).isBlack()) { // TODO: should really do this by a return value from board.movePiece() instead of a manual check
+                                const changedSquareIds = board.movePiece(fromSquare.id, toSquare.id);
+                                if (changedSquareIds !== null)
+                                    updateDocBoard(changedSquareIds);
+                                return;
+                            }
                         }
                         movingPiece = e.currentTarget;
                         movingPiece.style.zIndex = 2;
@@ -514,7 +516,6 @@
                             movingPiece.style.left = clientX - fromSquareClientRect.x - fromSquareClientRect.width/2;
                             movingPiece.style.top = clientY - fromSquareClientRect.y - fromSquareClientRect.height/2;
                         }
-                        docBoard.onmousemove(e);
                         docBoard.onmouseup = docBoard.ontouchend = function(e) {
                             e.preventDefault();
                             e.stopPropagation();
