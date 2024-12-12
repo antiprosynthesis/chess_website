@@ -467,7 +467,6 @@
                 if (piece === null) {
                     docSquare.replaceChildren();
                     docSquare.onclick = function(e) {
-                        console.log("docSquare[" + e.currentTarget.id + "].onclick");
                         e.preventDefault();
                         e.stopPropagation();
                         if (movingPiece === null)
@@ -488,8 +487,7 @@
                         e.preventDefault();
                         e.stopPropagation();
                     }
-                    docPiece.onmousedown = function(e) {
-                        console.log("docPiece[" + e.currentTarget.parentElement.id + "].onmousedown");
+                    docPiece.onmousedown = docPiece.ontouchstart = function(e) {
                         e.preventDefault();
                         e.stopPropagation();
                         if (movingPiece !== null) {
@@ -505,24 +503,27 @@
                         movingPiece = e.currentTarget;
                         movingPiece.style.zIndex = 2;
                         movingPiece.style.cursor = "grabbing";
-                        docBoard.onmousemove = function(e) {
+                        docBoard.onmousemove = docBoard.ontouchmove = function(e) {
                             e.preventDefault();
                             e.stopPropagation();
                             if (movingPiece === null)
                                 return;
+                            let clientX = 0; let clientY = 0;
+                            if (e.type === "ontouchmove") { clientX = e.touches[0].clientX; clientY = e.touches[0].clientY; } else { clientX = e.clientX; clientY = e.clientY; }
                             const fromSquareClientRect = movingPiece.parentElement.getBoundingClientRect();
-                            movingPiece.style.left = e.clientX - fromSquareClientRect.x - fromSquareClientRect.width/2;
-                            movingPiece.style.top = e.clientY - fromSquareClientRect.y - fromSquareClientRect.height/2;
+                            movingPiece.style.left = clientX - fromSquareClientRect.x - fromSquareClientRect.width/2;
+                            movingPiece.style.top = clientY - fromSquareClientRect.y - fromSquareClientRect.height/2;
                         }
                         docBoard.onmousemove(e);
-                        docBoard.onmouseup = function(e) {
-                            console.log("docBoard.onmouseup");
+                        docBoard.onmouseup = docBoard.ontouchend = function(e) {
                             e.preventDefault();
                             e.stopPropagation();
                             docBoard.onmousemove = null;
                             docBoard.onmouseup = null;
                             if (movingPiece === null)
                                 return;
+                            let clientX = 0; let clientY = 0;
+                            if (e.type === "ontouchend") { clientX = e.touches[0].clientX; clientY = e.touches[0].clientY; } else { clientX = e.clientX; clientY = e.clientY; }
                             const fromSquare = movingPiece.parentElement;
                             movingPiece.style.left = 0;
                             movingPiece.style.top = 0;
@@ -531,7 +532,7 @@
                             let toSquare = null;
                             for (const docSquare of docBoard.children) {
                                 const docSquareClientRect = docSquare.getBoundingClientRect();
-                                if ((e.clientX >= docSquareClientRect.left) && (e.clientX < docSquareClientRect.right) && (e.clientY >= docSquareClientRect.top) && (e.clientY < docSquareClientRect.bottom)) {
+                                if ((clientX >= docSquareClientRect.left) && (clientX < docSquareClientRect.right) && (clientY >= docSquareClientRect.top) && (clientY < docSquareClientRect.bottom)) {
                                     toSquare = docSquare;
                                     break;
                                 }
