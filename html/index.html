@@ -8,6 +8,8 @@
             --backgroundColor: hsl(0, 0%, 25%);
             --squareWhiteColor: hsl(37, 63%, 81%);
             --squareBlackColor: hsl(26, 38%, 55%);
+            --squareWhiteSelectedColor: hsl(55, 87%, 70%);
+            --squareBlackSelectedColor: hsl(50, 67%, 58%);
         }
         body {
             overflow: hidden;
@@ -26,17 +28,12 @@
             grid-template-columns: auto auto auto auto auto auto auto auto;
             caret-color: transparent;
         }
-        .square {
-            position: relative;
-        }
-        /* .square:hover {
-            outline: 10px solid #fff;
-            outline-offset: -10px;
-        } */
         .squareWhite {
+            position: relative;
             background-color: var(--squareWhiteColor);
         }
         .squareBlack {
+            position: relative;
             background-color: var(--squareBlackColor);
         }
         .piece {
@@ -358,7 +355,7 @@
                 }
                 if (!valid)
                     return null; // not a valid basic move
-                // TODO: castling, en passant, promotion, check
+                // TODO: check, castling, en passant, promotion
                 piece.moved = true;
                 this.squares[Board.squareXyToIndex(toSquareX, toSquareY)] = piece;
                 this.squares[Board.squareXyToIndex(squareX, squareY)] = null;
@@ -441,6 +438,10 @@
         board.setPiece("g8", new Piece("n"));
         board.setPiece("h8", new Piece("r"));
 
+        function getStyleRoot() {
+            return getComputedStyle(document.documentElement);
+        }
+
         const docBoardArea = document.createElement("div");
         docBoardArea.id = "boardArea";
         document.body.appendChild(docBoardArea);
@@ -453,52 +454,98 @@
             for (let x = 0; x < 8; ++x) {
                 const docSquare = document.createElement("div");
                 docSquare.id = Board.squareXyToId(x, 8 - 1 - y);
-                docSquare.className = "square" + (Board.isSquareBlack(docSquare.id) ? "Black" : "White") + " square";
+                docSquare.className = "square" + (Board.isSquareBlack(docSquare.id) ? "Black" : "White");
                 docBoard.appendChild(docSquare);
             }
         }
 
-        let draggingPiece = null;
+        let movingPiece = null;
 
         function updateDocBoard(changedSquareIds = null) {
             const updateDocSquare = function(docSquare) {
                 const piece = board.getPiece(docSquare.id);
-                if (piece === null)
+                if (piece === null) {
                     docSquare.replaceChildren();
+                    docSquare.onclick = function(e) {
+                        console.log("docSquare[" + e.currentTarget.id + "].onclick");
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (movingPiece === null)
+                            return;
+                        const fromSquare = movingPiece.parentElement;
+                        fromSquare.style.backgroundColor = getStyleRoot().getPropertyValue(Board.isSquareBlack(fromSquare.id) ? "--squareBlackColor" : "--squareWhiteColor");
+                        const toSquare = e.currentTarget;
+                        changedSquareIds = board.movePiece(fromSquare.id, toSquare.id);
+                        if (changedSquareIds !== null)
+                            updateDocBoard(changedSquareIds);
+                        movingPiece = null;
+                    }
+                }
                 else {
                     docSquare.innerHTML = "<svg class=\"piece\"><use href=\"#piece_" + piece.type + "\"/></svg>";
-                    docSquare.firstChild.onmousedown = function(e) {
-                        draggingPiece = e.currentTarget;
-                        draggingPiece.style.zIndex = 2;
-                        draggingPiece.style.cursor = "grabbing";
+                    const docPiece = docSquare.firstChild;
+                    docPiece.onclick = function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    }
+                    docPiece.onmousedown = function(e) {
+                        console.log("docPiece[" + e.currentTarget.parentElement.id + "].onmousedown");
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (movingPiece !== null) {
+                            const fromSquare = movingPiece.parentElement;
+                            fromSquare.style.backgroundColor = getStyleRoot().getPropertyValue(Board.isSquareBlack(fromSquare.id) ? "--squareBlackColor" : "--squareWhiteColor");
+                            const toSquare = e.currentTarget.parentElement;
+                            const changedSquareIds = board.movePiece(fromSquare.id, toSquare.id);
+                            if (changedSquareIds !== null)
+                                updateDocBoard(changedSquareIds);
+                            movingPiece = null;
+                            return;
+                        }
+                        movingPiece = e.currentTarget;
+                        movingPiece.style.zIndex = 2;
+                        movingPiece.style.cursor = "grabbing";
                         docBoard.onmousemove = function(e) {
-                            const docSquareClientRect = draggingPiece.parentElement.getBoundingClientRect();
-                            draggingPiece.style.left = e.clientX - docSquareClientRect.x - docSquareClientRect.width/2;
-                            draggingPiece.style.top = e.clientY - docSquareClientRect.y - docSquareClientRect.height/2;
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (movingPiece === null)
+                                return;
+                            const fromSquareClientRect = movingPiece.parentElement.getBoundingClientRect();
+                            movingPiece.style.left = e.clientX - fromSquareClientRect.x - fromSquareClientRect.width/2;
+                            movingPiece.style.top = e.clientY - fromSquareClientRect.y - fromSquareClientRect.height/2;
                         }
                         docBoard.onmousemove(e);
                         docBoard.onmouseup = function(e) {
+                            console.log("docBoard.onmouseup");
+                            e.preventDefault();
+                            e.stopPropagation();
                             docBoard.onmousemove = null;
                             docBoard.onmouseup = null;
-                            const fromSquareId = draggingPiece.parentElement.id;
-                            let toSquareId = null;
+                            if (movingPiece === null)
+                                return;
+                            const fromSquare = movingPiece.parentElement;
+                            movingPiece.style.left = 0;
+                            movingPiece.style.top = 0;
+                            movingPiece.style.zIndex = 1;
+                            movingPiece.style.cursor = "grab";
+                            let toSquare = null;
                             for (const docSquare of docBoard.children) {
                                 const docSquareClientRect = docSquare.getBoundingClientRect();
-                                if ((e.clientX >= docSquareClientRect.left) && (e.clientX < docSquareClientRect.right) && (e.clientY >= docSquareClientRect.top) && (e.clientY < docSquareClientRect.bottom))
-                                    toSquareId = docSquare.id;
+                                if ((e.clientX >= docSquareClientRect.left) && (e.clientX < docSquareClientRect.right) && (e.clientY >= docSquareClientRect.top) && (e.clientY < docSquareClientRect.bottom)) {
+                                    toSquare = docSquare;
+                                    break;
+                                }
                             }
-                            let changedSquareIds = null;
-                            if ((toSquareId !== null) && (fromSquareId !== toSquareId))
-                                changedSquareIds = board.movePiece(fromSquareId, toSquareId);
-                            if (changedSquareIds === null) {
-                                draggingPiece.style.left = 0;
-                                draggingPiece.style.top = 0;
-                                draggingPiece.style.zIndex = 1;
-                                draggingPiece.style.cursor = "grab";
+                            if (toSquare !== null) {
+                                if (toSquare.id === fromSquare.id) {
+                                    fromSquare.style.backgroundColor = getStyleRoot().getPropertyValue(Board.isSquareBlack(fromSquare.id) ? "--squareBlackSelectedColor" : "--squareWhiteSelectedColor");
+                                    return;
+                                }
+                                const changedSquareIds = board.movePiece(fromSquare.id, toSquare.id);
+                                if (changedSquareIds !== null)
+                                    updateDocBoard(changedSquareIds);
                             }
-                            else
-                                updateDocBoard(changedSquareIds);
-                            draggingPiece = null;
+                            movingPiece = null;
                         }
                     }
                 }
