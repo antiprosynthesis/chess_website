@@ -468,7 +468,6 @@
                     docSquare.replaceChildren();
                     docSquare.onclick = function(e) {
                         e.preventDefault();
-                        e.stopPropagation();
                         if (movingPiece === null)
                             return;
                         const fromSquare = movingPiece.parentElement;
@@ -489,7 +488,6 @@
                     }
                     docPiece.onpointerdown = function(e) {
                         e.preventDefault();
-                        e.stopPropagation();
                         if (movingPiece !== null) {
                             const fromSquare = movingPiece.parentElement;
                             fromSquare.style.backgroundColor = getStyleRoot().getPropertyValue(Board.isSquareBlack(fromSquare.id) ? "--squareBlackColor" : "--squareWhiteColor");
@@ -506,9 +504,7 @@
                         movingPiece.style.zIndex = 2;
                         movingPiece.style.cursor = "grabbing";
                         docBoard.onpointermove = function(e) {
-                            e = e || window.event;
                             e.preventDefault();
-                            e.stopPropagation();
                             if (movingPiece === null)
                                 return;
                             const fromSquareClientRect = movingPiece.parentElement.getBoundingClientRect();
@@ -516,9 +512,7 @@
                             movingPiece.style.top = e.clientY - fromSquareClientRect.y - fromSquareClientRect.height/2;
                         }
                         docBoard.onpointerup = function(e) {
-                            e = e || window.event;
                             e.preventDefault();
-                            e.stopPropagation();
                             docBoard.onpointermove = null;
                             docBoard.onpointerup = null;
                             if (movingPiece === null)
