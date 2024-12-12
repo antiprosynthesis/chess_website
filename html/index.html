@@ -488,8 +488,6 @@
                     }
                     docPiece.onpointerdown = function(e) {
                         e.preventDefault();
-                        if (e.target.hasPointerCapture(e.pointerId))
-                            e.target.releasePointerCapture(e.pointerId);
                         if (movingPiece !== null) {
                             const fromSquare = movingPiece.parentElement;
                             fromSquare.style.backgroundColor = getStyleRoot().getPropertyValue(Board.isSquareBlack(fromSquare.id) ? "--squareBlackColor" : "--squareWhiteColor");
