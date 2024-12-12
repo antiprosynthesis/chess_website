@@ -487,9 +487,10 @@
                         e.preventDefault();
                         e.stopPropagation();
                     }
-                    /* docPiece.onmousedown =  */docPiece.ontouchstart = function(e) {
+                    docPiece.onmousedown = docPiece.ontouchstart = function(e) {
                         e.preventDefault();
                         e.stopPropagation();
+                        e.currentTarget.parentElement.style.backgroundColor = "#FF0000";
                         if (movingPiece !== null) {
                             const fromSquare = movingPiece.parentElement;
                             fromSquare.style.backgroundColor = getStyleRoot().getPropertyValue(Board.isSquareBlack(fromSquare.id) ? "--squareBlackColor" : "--squareWhiteColor");
@@ -505,7 +506,7 @@
                         movingPiece = e.currentTarget;
                         movingPiece.style.zIndex = 2;
                         movingPiece.style.cursor = "grabbing";
-                        /* docBoard.onmousemove =  */docBoard.ontouchmove = function(e) {
+                        docBoard.onmousemove = docBoard.ontouchmove = function(e) {
                             e.preventDefault();
                             e.stopPropagation();
                             if (movingPiece === null)
@@ -516,7 +517,7 @@
                             movingPiece.style.left = clientX - fromSquareClientRect.x - fromSquareClientRect.width/2;
                             movingPiece.style.top = clientY - fromSquareClientRect.y - fromSquareClientRect.height/2;
                         }
-                        /* docBoard.onmouseup =  */docBoard.ontouchend = function(e) {
+                        docBoard.onmouseup = docBoard.ontouchend = function(e) {
                             e.preventDefault();
                             e.stopPropagation();
                             docBoard.onmousemove = null;
