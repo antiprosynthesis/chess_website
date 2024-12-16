@@ -359,7 +359,7 @@
                 piece.moved = true;
                 this.squares[Board.squareXyToIndex(toSquareX, toSquareY)] = piece;
                 this.squares[Board.squareXyToIndex(squareX, squareY)] = null;
-                return [squareId, toSquareId];
+                return [{id:toSquareId, fromId:squareId}];
             }
 
             getPiece(squareId) {
@@ -459,11 +459,16 @@
             }
         }
 
+        function getSquare(docBoard, id) {
+            return document.getElementById(id); // TODO: can convert id to board child index and access child directly
+        }
+
         let movingPiece = null;
 
-        function updateDocBoard(changedSquareIds = null) {
-            const updateDocSquare = function(docSquare) {
-                const piece = board.getPiece(docSquare.id);
+        function updateDocBoard(changedSquares = null, animate = false) {
+            const updateDocSquare = function(squareId, animateFromSquareId = null) {
+                const docSquare = getSquare(docBoard, squareId);
+                const piece = board.getPiece(squareId);
                 if (piece === null) {
                     docSquare.replaceChildren();
                     docSquare.onclick = function(e) {
@@ -473,15 +478,24 @@
                         const fromSquare = movingPiece.parentElement;
                         fromSquare.style.backgroundColor = getStyleRoot().getPropertyValue(Board.isSquareBlack(fromSquare.id) ? "--squareBlackColor" : "--squareWhiteColor");
                         const toSquare = e.currentTarget;
-                        changedSquareIds = board.movePiece(fromSquare.id, toSquare.id);
-                        if (changedSquareIds !== null)
-                            updateDocBoard(changedSquareIds);
+                        const changedSquares = board.movePiece(fromSquare.id, toSquare.id);
+                        if (changedSquares !== null)
+                            updateDocBoard(changedSquares, true);
                         movingPiece = null;
                     }
                 }
                 else {
                     docSquare.innerHTML = "<svg class=\"piece\"><use href=\"#piece_" + piece.type + "\"/></svg>";
-                    const docPiece = docSquare.firstChild;
+                    const docPiece = docSquare.lastElementChild;
+                    if (animateFromSquareId !== null) {
+                        const squareClientRect = docSquare.getBoundingClientRect();
+                        const fromSquareClientRect = getSquare(docBoard, animateFromSquareId).getBoundingClientRect();
+                        docPiece.animate([
+                                { left: (fromSquareClientRect.x - squareClientRect.x) + "px", top: (fromSquareClientRect.y - squareClientRect.y) + "px" },
+                                { left: 0, top: 0 }
+                            ], { duration: 100, iterations: 1 }
+                        );
+                    }
                     docPiece.onclick = function(e) {
                         e.preventDefault();
                         e.stopPropagation();
@@ -493,10 +507,10 @@
                             fromSquare.style.backgroundColor = getStyleRoot().getPropertyValue(Board.isSquareBlack(fromSquare.id) ? "--squareBlackColor" : "--squareWhiteColor");
                             const toSquare = e.currentTarget.parentElement;
                             movingPiece = null;
-                            if (board.getPiece(fromSquare.id).isBlack() !== board.getPiece(toSquare.id).isBlack()) { // TODO: should really do this by a return value from board.movePiece() instead of a manual check
-                                const changedSquareIds = board.movePiece(fromSquare.id, toSquare.id);
-                                if (changedSquareIds !== null)
-                                    updateDocBoard(changedSquareIds);
+                            if (board.getPiece(fromSquare.id).isBlack() !== board.getPiece(toSquare.id).isBlack()) {
+                                const changedSquares = board.movePiece(fromSquare.id, toSquare.id);
+                                if (changedSquares !== null)
+                                    updateDocBoard(changedSquares, true);
                                 return;
                             }
                         }
@@ -535,22 +549,25 @@
                                     fromSquare.style.backgroundColor = getStyleRoot().getPropertyValue(Board.isSquareBlack(fromSquare.id) ? "--squareBlackSelectedColor" : "--squareWhiteSelectedColor");
                                     return;
                                 }
-                                const changedSquareIds = board.movePiece(fromSquare.id, toSquare.id);
-                                if (changedSquareIds !== null)
-                                    updateDocBoard(changedSquareIds);
+                                const changedSquares = board.movePiece(fromSquare.id, toSquare.id);
+                                if (changedSquares !== null)
+                                    updateDocBoard(changedSquares);
                             }
                             movingPiece = null;
                         }
                     }
                 }
             };
-            if (changedSquareIds === null) {
+            if (changedSquares === null) {
                 for (const docSquare of docBoard.children)
-                    updateDocSquare(docSquare);
+                    updateDocSquare(docSquare.id);
                 return;
             }
-            for (const squareId of changedSquareIds)
-                updateDocSquare(document.getElementById(squareId)); // TODO: can convert id to child index and access child directly
+            for (const changedSquare of changedSquares) {
+                updateDocSquare(changedSquare.fromId);
+                if (changedSquare.id !== changedSquare.fromId)
+                    updateDocSquare(changedSquare.id, animate ? changedSquare.fromId : null);
+            }
         }
 
         updateDocBoard();
