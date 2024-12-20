@@ -289,9 +289,6 @@
             isBlack() {
                 return (this.type === this.type.toLowerCase());
             }
-            isWhite() {
-                return !isBlack();
-            }
 
             getBasicMoves(capture = false) {
                 switch (this.type) {
@@ -316,13 +313,17 @@
         }
 
         class Board {
-            constructor() {
+            constructor(other = null) {
+                if (other !== null) {
+                    this.squares = other.squares.slice();
+                    return;
+                }
                 this.squares = [];
                 for (let i = 0; i < 8*8; ++i)
                     this.squares.push(null);
             }
 
-            movePiece(squareId, toSquareId) {
+            movePiece(squareId, toSquareId, testOnly = false, allowCheck = false) {
                 if (squareId === toSquareId)
                     return null; // move to same square
                 const squareX = Board.squareIdToX(squareId);
@@ -335,31 +336,77 @@
                 const toPiece = this.squares[Board.squareXyToIndex(toSquareX, toSquareY)];
                 if ((toPiece !== null) && (piece.isBlack() === toPiece.isBlack()))
                     return null; // move to square with same color piece
-                const basicMoves = piece.getBasicMoves(toPiece !== null);
-                let valid = false;
-                for (const basicSteps of basicMoves.steps) {
-                    let pieceX = squareX;
-                    let pieceY = squareY;
-                    for (let step = 1; step <= basicMoves.maxSteps; ++step) {
-                        pieceX += basicSteps[0];
-                        pieceY += basicSteps[1];
-                        if ((pieceX === toSquareX) && (pieceY === toSquareY)) {
-                            valid = true;
+                {
+                    let valid = false;
+                    const basicMoves = piece.getBasicMoves(toPiece !== null);
+                    for (const basicSteps of basicMoves.steps) {
+                        let pieceX = squareX;
+                        let pieceY = squareY;
+                        for (let step = 1; step <= basicMoves.maxSteps; ++step) {
+                            pieceX += basicSteps[0];
+                            pieceY += basicSteps[1];
+                            if ((pieceX === toSquareX) && (pieceY === toSquareY)) {
+                                valid = true;
+                                break;
+                            }
+                            if ((pieceX < 0) || (pieceY < 0) || (pieceX >= 8) || (pieceY >= 8))
+                                break;
+                            if (this.squares[Board.squareXyToIndex(pieceX, pieceY)] !== null)
+                                break;
+                        }
+                    }
+                    if (!valid)
+                        return null; // not a valid basic move
+                }
+                if (!allowCheck) {
+                    let valid = true;
+                    const oldToPiece = this.squares[Board.squareXyToIndex(toSquareX, toSquareY)];
+                    this.squares[Board.squareXyToIndex(toSquareX, toSquareY)] = piece;
+                    this.squares[Board.squareXyToIndex(squareX, squareY)] = null;
+                    const kingSquareIds = this.findPiece(piece.isBlack() ? "k" : "K");
+                    for (const kingSquareId of kingSquareIds) {
+                        if (this.getAttackers(kingSquareId).length !== 0) {
+                            valid = false;
                             break;
                         }
-                        if ((pieceX < 0) || (pieceY < 0) || (pieceX >= 8) || (pieceY >= 8))
-                            break;
-                        if (this.squares[Board.squareXyToIndex(pieceX, pieceY)] !== null)
-                            break;
+                    }
+                    this.squares[Board.squareXyToIndex(toSquareX, toSquareY)] = oldToPiece;
+                    this.squares[Board.squareXyToIndex(squareX, squareY)] = piece;
+                    if (!valid)
+                        return null; // move causes check
+                }
+                
+                // TODO: castling, en passant, promotion
+                if (!testOnly) {
+                    piece.moved = true;
+                    this.squares[Board.squareXyToIndex(toSquareX, toSquareY)] = piece;
+                    this.squares[Board.squareXyToIndex(squareX, squareY)] = null;
+                }
+                return [{id: toSquareId, fromId: squareId}];
+            }
+
+            getAttackers(squareId, allowCheck = true) {
+                const attackers = [];
+                const squareX = Board.squareIdToX(squareId);
+                const squareY = Board.squareIdToY(squareId);
+                for (let y = 0; y < 8; ++y) {
+                    for (let x = 0; x < 8; ++x) {
+                        const fromSquareId = Board.squareXyToId(x, y);
+                        if (this.movePiece(fromSquareId, squareId, true, allowCheck) !== null)
+                            attackers.push(fromSquareId);
                     }
                 }
-                if (!valid)
-                    return null; // not a valid basic move
-                // TODO: check, castling, en passant, promotion
-                piece.moved = true;
-                this.squares[Board.squareXyToIndex(toSquareX, toSquareY)] = piece;
-                this.squares[Board.squareXyToIndex(squareX, squareY)] = null;
-                return [{id:toSquareId, fromId:squareId}];
+                return attackers;
+            }
+
+            findPiece(type) {
+                const squareIds = [];
+                for (let i = 0; i < this.squares.length; ++i) {
+                    const square = this.squares[i];
+                    if ((square !== null) && (square.type === type))
+                        squareIds.push(Board.squareIndexToId(i));
+                }
+                return squareIds;
             }
 
             getPiece(squareId) {
@@ -400,7 +447,7 @@
                 return Board.squareXyToIndex(Board.squareIdToX(id), Board.squareIdToY(id));
             }
             static squareIndexToId(index) {
-                return Board.squareXyToIndex(Board.squareIndexToX(index), Board.squareIndexToY(index));
+                return Board.squareXyToId(Board.squareIndexToX(index), Board.squareIndexToY(index));
             }
         }
 
@@ -490,11 +537,7 @@
                     if (animateFromSquareId !== null) {
                         const squareClientRect = docSquare.getBoundingClientRect();
                         const fromSquareClientRect = getSquare(docBoard, animateFromSquareId).getBoundingClientRect();
-                        docPiece.animate([
-                                { left: (fromSquareClientRect.x - squareClientRect.x) + "px", top: (fromSquareClientRect.y - squareClientRect.y) + "px" },
-                                { left: 0, top: 0 }
-                            ], { duration: 100, iterations: 1 }
-                        );
+                        docPiece.animate([{ left: (fromSquareClientRect.x - squareClientRect.x) + "px", top: (fromSquareClientRect.y - squareClientRect.y) + "px" }, { left: 0, top: 0 }], 100);
                     }
                     docPiece.onclick = function(e) {
                         e.preventDefault();
