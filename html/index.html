@@ -314,14 +314,11 @@
         }
 
         class Board {
-            constructor(other = null) {
-                if (other !== null) {
-                    this.squares = other.squares.slice();
-                    return;
-                }
+            constructor() {
                 this.squares = [];
                 for (let i = 0; i < 8*8; ++i)
                     this.squares.push(null);
+                this.enPassantSquareId = null;
             }
 
             movePiece(squareId, toSquareId, testOnly = false, allowCheck = false, allowCastling = true) {
@@ -337,7 +334,7 @@
                 const toPiece = this.squares[Board.squareXyToIndex(toSquareX, toSquareY)];
                 if ((toPiece !== null) && (piece.isBlack() === toPiece.isBlack()))
                     return null; // can't move to square with same color piece
-                if (allowCastling && ((piece.type === "K") || (piece.type === "k")) && (Math.abs(toSquareX - squareX) === 2) && (squareY === toSquareY)) {
+                if (allowCastling && ((piece.type === "K") || (piece.type === "k")) && (Math.abs(toSquareX - squareX) === 2) && (toSquareY === squareY)) {
                     if (piece.moved)
                         return null; // can't castle because king already moved
                     const dSquareX = toSquareX - squareX;
@@ -368,11 +365,13 @@
                         this.squares[Board.squareXyToIndex(rookSquareX, squareY)] = null;
                         this.squares[Board.squareXyToIndex(toRookSquareX, squareY)] = rookPiece;
                         rookPiece.moved = true;
+                        this.enPassantSquareId = null;
                     }
                     return [{id: toSquareId, fromId: squareId}, {id: Board.squareXyToId(toRookSquareX, squareY), fromId: Board.squareXyToId(rookSquareX, squareY)}];
                 }
                 else
                 {
+                    // TODO: use enPassantSquareId to allow en passant
                     let valid = false;
                     const basicMoves = piece.getBasicMoves(toPiece !== null);
                     for (const basicSteps of basicMoves.steps) {
@@ -397,8 +396,8 @@
                         return null; // not a valid basic move
                     if (!allowCheck) {
                         const oldToPiece = this.squares[Board.squareXyToIndex(toSquareX, toSquareY)];
-                        this.squares[Board.squareXyToIndex(toSquareX, toSquareY)] = piece;
                         this.squares[Board.squareXyToIndex(squareX, squareY)] = null;
+                        this.squares[Board.squareXyToIndex(toSquareX, toSquareY)] = piece;
                         const kingSquareIds = this.findPiece(piece.isBlack() ? "k" : "K");
                         for (const kingSquareId of kingSquareIds) {
                             if (this.getAttackers(kingSquareId).length !== 0) {
@@ -415,10 +414,11 @@
                         this.squares[Board.squareXyToIndex(squareX, squareY)] = null;
                         this.squares[Board.squareXyToIndex(toSquareX, toSquareY)] = piece;
                         piece.moved = true;
+                        this.enPassantSquareId = (((piece.type === "P") || (piece.type === "p")) && (toSquareX === squareX) && (Math.abs(toSquareY - squareY) == 2)) ? Board.squareXyToId(squareX, squareY + (toSquareY - squareY)/2) : null;
                     }
                     return [{id: toSquareId, fromId: squareId}];
                 }
-                // TODO: en passant, promotion
+                // TODO: promotion
             }
 
             getAttackers(squareId, allowCheck = true) {
