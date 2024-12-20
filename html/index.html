@@ -324,9 +324,9 @@
                     this.squares.push(null);
             }
 
-            movePiece(squareId, toSquareId, testOnly = false, allowCheck = false) {
+            movePiece(squareId, toSquareId, testOnly = false, allowCheck = false, allowCastling = true) {
                 if (squareId === toSquareId)
-                    return null; // move to same square
+                    return null; // can't move to same square
                 const squareX = Board.squareIdToX(squareId);
                 const squareY = Board.squareIdToY(squareId);
                 const toSquareX = Board.squareIdToX(toSquareId);
@@ -336,7 +336,42 @@
                     return null; // no piece to move
                 const toPiece = this.squares[Board.squareXyToIndex(toSquareX, toSquareY)];
                 if ((toPiece !== null) && (piece.isBlack() === toPiece.isBlack()))
-                    return null; // move to square with same color piece
+                    return null; // can't move to square with same color piece
+                if (allowCastling && ((piece.type === "K") || (piece.type === "k")) && (Math.abs(toSquareX - squareX) === 2) && (squareY === toSquareY)) {
+                    if (piece.moved)
+                        return null; // can't castle because king already moved
+                    const dSquareX = toSquareX - squareX;
+                    const rookSquareX = (dSquareX < 0) ? 0 : 7;
+                    const rookPiece = this.squares[Board.squareXyToIndex(rookSquareX, squareY)];
+                    if ((rookPiece === null) || (rookPiece.type !== ((piece.type === "k") ? "r" : "R")))
+                        return null; // can't castle because no rook at edge of board
+                    if (rookPiece.moved)
+                        return null; // can't castle because rook already moved
+                    for (let x = Math.min(squareX, rookSquareX) + 1, x1 = Math.max(squareX, rookSquareX) - 1; x < x1; ++x) {
+                        if (this.squares[Board.squareXyToIndex(x, squareY)] !== null)
+                            return null; // can't castle because pieces in the way
+                    }
+                    if (this.getAttackers(squareId).length !== 0)
+                        return null; // can't castle because king is in check
+                    for (let x = (dSquareX < 0) ? toSquareX : (squareX + 1), x1 = (dSquareX < 0) ? (squareX - 1) : toSquareX; x <= x1; ++x) {
+                        const attackers = this.getAttackers(Board.squareXyToId(x, squareY));
+                        for (const attacker of attackers) {
+                            if (this.squares[Board.squareIdToIndex(attacker)].isBlack() !== piece.isBlack())
+                                return null; // can't castle because one or more target squares are in check
+                        }
+                    }
+                    const toRookSquareX = (dSquareX < 0) ? (toSquareX + 1) : (toSquareX - 1);
+                    if (!testOnly) {
+                        this.squares[Board.squareXyToIndex(squareX, squareY)] = null;
+                        this.squares[Board.squareXyToIndex(toSquareX, squareY)] = piece;
+                        piece.moved = true;
+                        this.squares[Board.squareXyToIndex(rookSquareX, squareY)] = null;
+                        this.squares[Board.squareXyToIndex(toRookSquareX, squareY)] = rookPiece;
+                        rookPiece.moved = true;
+                    }
+                    return [{id: toSquareId, fromId: squareId}, {id: Board.squareXyToId(toRookSquareX, squareY), fromId: Board.squareXyToId(rookSquareX, squareY)}];
+                }
+                else
                 {
                     let valid = false;
                     const basicMoves = piece.getBasicMoves(toPiece !== null);
@@ -355,35 +390,35 @@
                             if (this.squares[Board.squareXyToIndex(pieceX, pieceY)] !== null)
                                 break;
                         }
+                        if (valid)
+                            break;
                     }
                     if (!valid)
                         return null; // not a valid basic move
-                }
-                if (!allowCheck) {
-                    let valid = true;
-                    const oldToPiece = this.squares[Board.squareXyToIndex(toSquareX, toSquareY)];
-                    this.squares[Board.squareXyToIndex(toSquareX, toSquareY)] = piece;
-                    this.squares[Board.squareXyToIndex(squareX, squareY)] = null;
-                    const kingSquareIds = this.findPiece(piece.isBlack() ? "k" : "K");
-                    for (const kingSquareId of kingSquareIds) {
-                        if (this.getAttackers(kingSquareId).length !== 0) {
-                            valid = false;
-                            break;
+                    if (!allowCheck) {
+                        const oldToPiece = this.squares[Board.squareXyToIndex(toSquareX, toSquareY)];
+                        this.squares[Board.squareXyToIndex(toSquareX, toSquareY)] = piece;
+                        this.squares[Board.squareXyToIndex(squareX, squareY)] = null;
+                        const kingSquareIds = this.findPiece(piece.isBlack() ? "k" : "K");
+                        for (const kingSquareId of kingSquareIds) {
+                            if (this.getAttackers(kingSquareId).length !== 0) {
+                                valid = false;
+                                break;
+                            }
                         }
+                        this.squares[Board.squareXyToIndex(toSquareX, toSquareY)] = oldToPiece;
+                        this.squares[Board.squareXyToIndex(squareX, squareY)] = piece;
+                        if (!valid)
+                            return null; // move causes check
                     }
-                    this.squares[Board.squareXyToIndex(toSquareX, toSquareY)] = oldToPiece;
-                    this.squares[Board.squareXyToIndex(squareX, squareY)] = piece;
-                    if (!valid)
-                        return null; // move causes check
+                    if (!testOnly) {
+                        this.squares[Board.squareXyToIndex(squareX, squareY)] = null;
+                        this.squares[Board.squareXyToIndex(toSquareX, toSquareY)] = piece;
+                        piece.moved = true;
+                    }
+                    return [{id: toSquareId, fromId: squareId}];
                 }
-                
-                // TODO: castling, en passant, promotion
-                if (!testOnly) {
-                    piece.moved = true;
-                    this.squares[Board.squareXyToIndex(toSquareX, toSquareY)] = piece;
-                    this.squares[Board.squareXyToIndex(squareX, squareY)] = null;
-                }
-                return [{id: toSquareId, fromId: squareId}];
+                // TODO: en passant, promotion
             }
 
             getAttackers(squareId, allowCheck = true) {
@@ -393,7 +428,7 @@
                 for (let y = 0; y < 8; ++y) {
                     for (let x = 0; x < 8; ++x) {
                         const fromSquareId = Board.squareXyToId(x, y);
-                        if (this.movePiece(fromSquareId, squareId, true, allowCheck) !== null)
+                        if (this.movePiece(fromSquareId, squareId, true, allowCheck, false) !== null)
                             attackers.push(fromSquareId);
                     }
                 }
