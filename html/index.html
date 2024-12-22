@@ -344,7 +344,7 @@
                         return null; // can't castle because no rook at edge of board
                     if (rookPiece.moved)
                         return null; // can't castle because rook already moved
-                    for (let x = Math.min(squareX, rookSquareX) + 1, x1 = Math.max(squareX, rookSquareX) - 1; x < x1; ++x) {
+                    for (let x = Math.min(squareX, rookSquareX) + 1, x1 = Math.max(squareX, rookSquareX) - 1; x <= x1; ++x) {
                         if (this.squares[Board.squareXyToIndex(x, squareY)] !== null)
                             return null; // can't castle because pieces in the way
                     }
