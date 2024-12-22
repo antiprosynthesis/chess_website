@@ -318,10 +318,10 @@
                 this.squares = [];
                 for (let i = 0; i < 8*8; ++i)
                     this.squares.push(null);
-                this.enPassantSquareId = null;
+                this.enPassantPawnSquareId = null;
             }
 
-            movePiece(squareId, toSquareId, testOnly = false, allowCheck = false, allowCastling = true) {
+            movePiece(squareId, toSquareId, testOnly = false, allowCheck = false, allowCastling = true, allowEnPassant = true) {
                 if (squareId === toSquareId)
                     return null; // can't move to same square
                 const squareX = Board.squareIdToX(squareId);
@@ -365,59 +365,90 @@
                         this.squares[Board.squareXyToIndex(rookSquareX, squareY)] = null;
                         this.squares[Board.squareXyToIndex(toRookSquareX, squareY)] = rookPiece;
                         rookPiece.moved = true;
-                        this.enPassantSquareId = null;
+                        this.enPassantPawnSquareId = null;
                     }
                     return [{id: toSquareId, fromId: squareId}, {id: Board.squareXyToId(toRookSquareX, squareY), fromId: Board.squareXyToId(rookSquareX, squareY)}];
                 }
-                else
-                {
-                    // TODO: use enPassantSquareId to allow en passant
-                    let valid = false;
-                    const basicMoves = piece.getBasicMoves(toPiece !== null);
-                    for (const basicSteps of basicMoves.steps) {
-                        let pieceX = squareX;
-                        let pieceY = squareY;
-                        for (let step = 1; step <= basicMoves.maxSteps; ++step) {
-                            pieceX += basicSteps[0];
-                            pieceY += basicSteps[1];
-                            if ((pieceX === toSquareX) && (pieceY === toSquareY)) {
-                                valid = true;
-                                break;
+                if (allowEnPassant && ((piece.type === "P") || (piece.type === "p")) && (this.enPassantPawnSquareId !== null)) {
+                    const enPassantPawnSquareX = Board.squareIdToX(this.enPassantPawnSquareId);
+                    const enPassantPawnSquareY = Board.squareIdToY(this.enPassantPawnSquareId);
+                    const enPassantPawn = this.squares[Board.squareXyToIndex(enPassantPawnSquareX, enPassantPawnSquareY)];
+                    if ((piece.isBlack() !== enPassantPawn.isBlack()) && ((squareX === (enPassantPawnSquareX - 1)) || (squareX === (enPassantPawnSquareX + 1))) && (toSquareX === enPassantPawnSquareX) && (toSquareY === (enPassantPawnSquareY + (enPassantPawn.isBlack() ? 1 : -1)))) {
+                        if (!allowCheck) {
+                            const inCheck = false;
+                            this.squares[Board.squareXyToIndex(squareX, squareY)] = null;
+                            this.squares[Board.squareXyToIndex(toSquareX, toSquareY)] = piece;
+                            this.squares[Board.squareXyToIndex(enPassantPawnSquareX, enPassantPawnSquareY)] = null;
+                            const kingSquareIds = this.findPiece(piece.isBlack() ? "k" : "K");
+                            for (const kingSquareId of kingSquareIds) {
+                                if (this.getAttackers(kingSquareId).length !== 0) {
+                                    inCheck = true;
+                                    break;
+                                }
                             }
-                            if ((pieceX < 0) || (pieceY < 0) || (pieceX >= 8) || (pieceY >= 8))
-                                break;
-                            if (this.squares[Board.squareXyToIndex(pieceX, pieceY)] !== null)
-                                break;
+                            this.squares[Board.squareXyToIndex(enPassantPawnSquareX, enPassantPawnSquareY)] = enPassantPawn;
+                            this.squares[Board.squareXyToIndex(toSquareX, toSquareY)] = null;
+                            this.squares[Board.squareXyToIndex(squareX, squareY)] = piece;
+                            if (inCheck)
+                                return null; // move causes check
                         }
-                        if (valid)
+                        const enPassantPawnSquareId = this.enPassantPawnSquareId;
+                        if (!testOnly) {
+                            this.squares[Board.squareXyToIndex(squareX, squareY)] = null;
+                            this.squares[Board.squareXyToIndex(toSquareX, toSquareY)] = piece;
+                            this.squares[Board.squareXyToIndex(enPassantPawnSquareX, enPassantPawnSquareY)] = null;
+                            piece.moved = true;
+                            this.enPassantPawnSquareId = null;
+                        }
+                        return [{id: toSquareId, fromId: squareId}, {id: enPassantPawnSquareId, fromId: enPassantPawnSquareId}];
+                    }
+                }
+                let valid = false;
+                const basicMoves = piece.getBasicMoves(toPiece !== null);
+                for (const basicSteps of basicMoves.steps) {
+                    let pieceX = squareX;
+                    let pieceY = squareY;
+                    for (let step = 1; step <= basicMoves.maxSteps; ++step) {
+                        pieceX += basicSteps[0];
+                        pieceY += basicSteps[1];
+                        if ((pieceX === toSquareX) && (pieceY === toSquareY)) {
+                            valid = true;
+                            break;
+                        }
+                        if ((pieceX < 0) || (pieceY < 0) || (pieceX >= 8) || (pieceY >= 8))
+                            break;
+                        if (this.squares[Board.squareXyToIndex(pieceX, pieceY)] !== null)
                             break;
                     }
-                    if (!valid)
-                        return null; // not a valid basic move
-                    if (!allowCheck) {
-                        const oldToPiece = this.squares[Board.squareXyToIndex(toSquareX, toSquareY)];
-                        this.squares[Board.squareXyToIndex(squareX, squareY)] = null;
-                        this.squares[Board.squareXyToIndex(toSquareX, toSquareY)] = piece;
-                        const kingSquareIds = this.findPiece(piece.isBlack() ? "k" : "K");
-                        for (const kingSquareId of kingSquareIds) {
-                            if (this.getAttackers(kingSquareId).length !== 0) {
-                                valid = false;
-                                break;
-                            }
-                        }
-                        this.squares[Board.squareXyToIndex(toSquareX, toSquareY)] = oldToPiece;
-                        this.squares[Board.squareXyToIndex(squareX, squareY)] = piece;
-                        if (!valid)
-                            return null; // move causes check
-                    }
-                    if (!testOnly) {
-                        this.squares[Board.squareXyToIndex(squareX, squareY)] = null;
-                        this.squares[Board.squareXyToIndex(toSquareX, toSquareY)] = piece;
-                        piece.moved = true;
-                        this.enPassantSquareId = (((piece.type === "P") || (piece.type === "p")) && (toSquareX === squareX) && (Math.abs(toSquareY - squareY) == 2)) ? Board.squareXyToId(squareX, squareY + (toSquareY - squareY)/2) : null;
-                    }
-                    return [{id: toSquareId, fromId: squareId}];
+                    if (valid)
+                        break;
                 }
+                if (!valid)
+                    return null; // not a valid basic move
+                if (!allowCheck) {
+                    const inCheck = false;
+                    const oldToPiece = this.squares[Board.squareXyToIndex(toSquareX, toSquareY)];
+                    this.squares[Board.squareXyToIndex(squareX, squareY)] = null;
+                    this.squares[Board.squareXyToIndex(toSquareX, toSquareY)] = piece;
+                    const kingSquareIds = this.findPiece(piece.isBlack() ? "k" : "K");
+                    for (const kingSquareId of kingSquareIds) {
+                        if (this.getAttackers(kingSquareId).length !== 0) {
+                            inCheck = true;
+                            break;
+                        }
+                    }
+                    this.squares[Board.squareXyToIndex(toSquareX, toSquareY)] = oldToPiece;
+                    this.squares[Board.squareXyToIndex(squareX, squareY)] = piece;
+                    if (inCheck)
+                        return null; // move causes check
+                }
+                if (!testOnly) {
+                    this.squares[Board.squareXyToIndex(squareX, squareY)] = null;
+                    this.squares[Board.squareXyToIndex(toSquareX, toSquareY)] = piece;
+                    piece.moved = true;
+                    this.enPassantPawnSquareId = (((piece.type === "P") || (piece.type === "p")) && (toSquareX === squareX) && (Math.abs(toSquareY - squareY) == 2)) ? toSquareId : null;
+                }
+                return [{id: toSquareId, fromId: squareId}];
                 // TODO: promotion
             }
 
@@ -428,7 +459,7 @@
                 for (let y = 0; y < 8; ++y) {
                     for (let x = 0; x < 8; ++x) {
                         const fromSquareId = Board.squareXyToId(x, y);
-                        if (this.movePiece(fromSquareId, squareId, true, allowCheck, false) !== null)
+                        if (this.movePiece(fromSquareId, squareId, true, allowCheck, false, false) !== null)
                             attackers.push(fromSquareId);
                     }
                 }
