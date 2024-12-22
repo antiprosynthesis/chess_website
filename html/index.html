@@ -375,17 +375,10 @@
                     const enPassantPawn = this.squares[Board.squareXyToIndex(enPassantPawnSquareX, enPassantPawnSquareY)];
                     if ((piece.isBlack() !== enPassantPawn.isBlack()) && ((squareX === (enPassantPawnSquareX - 1)) || (squareX === (enPassantPawnSquareX + 1))) && (toSquareX === enPassantPawnSquareX) && (toSquareY === (enPassantPawnSquareY + (enPassantPawn.isBlack() ? 1 : -1)))) {
                         if (!allowCheck) {
-                            const inCheck = false;
                             this.squares[Board.squareXyToIndex(squareX, squareY)] = null;
                             this.squares[Board.squareXyToIndex(toSquareX, toSquareY)] = piece;
                             this.squares[Board.squareXyToIndex(enPassantPawnSquareX, enPassantPawnSquareY)] = null;
-                            const kingSquareIds = this.findPiece(piece.isBlack() ? "k" : "K");
-                            for (const kingSquareId of kingSquareIds) {
-                                if (this.getAttackers(kingSquareId).length !== 0) {
-                                    inCheck = true;
-                                    break;
-                                }
-                            }
+                            const inCheck = this.isInCheck(piece.isBlack());
                             this.squares[Board.squareXyToIndex(enPassantPawnSquareX, enPassantPawnSquareY)] = enPassantPawn;
                             this.squares[Board.squareXyToIndex(toSquareX, toSquareY)] = null;
                             this.squares[Board.squareXyToIndex(squareX, squareY)] = piece;
@@ -426,17 +419,10 @@
                 if (!valid)
                     return null; // not a valid basic move
                 if (!allowCheck) {
-                    const inCheck = false;
                     const oldToPiece = this.squares[Board.squareXyToIndex(toSquareX, toSquareY)];
                     this.squares[Board.squareXyToIndex(squareX, squareY)] = null;
                     this.squares[Board.squareXyToIndex(toSquareX, toSquareY)] = piece;
-                    const kingSquareIds = this.findPiece(piece.isBlack() ? "k" : "K");
-                    for (const kingSquareId of kingSquareIds) {
-                        if (this.getAttackers(kingSquareId).length !== 0) {
-                            inCheck = true;
-                            break;
-                        }
-                    }
+                    const inCheck = this.isInCheck(piece.isBlack());
                     this.squares[Board.squareXyToIndex(toSquareX, toSquareY)] = oldToPiece;
                     this.squares[Board.squareXyToIndex(squareX, squareY)] = piece;
                     if (inCheck)
@@ -456,14 +442,34 @@
                 const attackers = [];
                 const squareX = Board.squareIdToX(squareId);
                 const squareY = Board.squareIdToY(squareId);
-                for (let y = 0; y < 8; ++y) {
-                    for (let x = 0; x < 8; ++x) {
-                        const fromSquareId = Board.squareXyToId(x, y);
-                        if (this.movePiece(fromSquareId, squareId, true, allowCheck, false, false) !== null)
-                            attackers.push(fromSquareId);
-                    }
+                for (let i = 0; i < this.squares.length; ++i) {
+                    const fromSquareId = Board.squareIndexToId(i);
+                    if (this.movePiece(fromSquareId, squareId, true, allowCheck, false, false) !== null)
+                        attackers.push(fromSquareId);
                 }
                 return attackers;
+            }
+
+            isInCheck(black) {
+                const kingSquareIds = this.findPiece(black ? "k" : "K");
+                for (const kingSquareId of kingSquareIds) {
+                    if (this.getAttackers(kingSquareId).length !== 0)
+                        return true;
+                }
+                return false;
+            }
+
+            canMoveAnyPiece(black) {
+                for (let i = 0; i < this.squares.length; ++i) {
+                    const piece = this.squares[i];
+                    if ((piece === null) || (piece.isBlack() !== black))
+                        continue;
+                    const squareId = Board.squareIndexToId(i);
+                    for (let j = 0; j < this.squares.length; ++j) // TODO: can reduce this significantly based on piece type
+                        if (this.movePiece(squareId, Board.squareIndexToId(j), true) !== null)
+                            return true;
+                }
+                return false;
             }
 
             findPiece(type) {
