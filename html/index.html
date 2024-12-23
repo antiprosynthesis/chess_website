@@ -49,6 +49,12 @@
                 translate: var(--startingX) var(--startingY);
             }
         }
+        .promoteDialog {
+            position: absolute;
+            width: 100%;
+            height: 450%;
+            /* TODO: ... */
+        }
     </style>
 </head>
 <body>
@@ -322,6 +328,8 @@
                 for (let i = 0; i < 8*8; ++i)
                     this.squares.push(null);
                 this.enPassantPawnSquareId = null;
+                this.onPromotion = null; // function(squareId) {}
+                this.onMoved = null; // function(changedSquares) {}
             }
 
             movePiece(squareId, toSquareId, testOnly = false, allowCheck = false, allowCastling = true, allowEnPassant = true) {
@@ -370,7 +378,10 @@
                         rookPiece.moved = true;
                         this.enPassantPawnSquareId = null;
                     }
-                    return [{id: toSquareId, fromId: squareId}, {id: Board.squareXyToId(toRookSquareX, squareY), fromId: Board.squareXyToId(rookSquareX, squareY)}];
+                    const changedSquares = [{id: toSquareId, fromId: squareId}, {id: Board.squareXyToId(toRookSquareX, squareY), fromId: Board.squareXyToId(rookSquareX, squareY)}];
+                    if (this.onMoved !== null)
+                        this.onMoved(changedSquares);
+                    return changedSquares;
                 }
                 if (allowEnPassant && ((piece.type === "P") || (piece.type === "p")) && (this.enPassantPawnSquareId !== null)) {
                     const enPassantPawnSquareX = Board.squareIdToX(this.enPassantPawnSquareId);
@@ -396,7 +407,10 @@
                             piece.moved = true;
                             this.enPassantPawnSquareId = null;
                         }
-                        return [{id: toSquareId, fromId: squareId}, {id: enPassantPawnSquareId, fromId: enPassantPawnSquareId}];
+                        const changedSquares = [{id: toSquareId, fromId: squareId}, {id: enPassantPawnSquareId, fromId: enPassantPawnSquareId}];
+                        if (this.onMoved !== null)
+                            this.onMoved(changedSquares);
+                        return changedSquares;
                     }
                 }
                 let valid = false;
@@ -437,8 +451,12 @@
                     piece.moved = true;
                     this.enPassantPawnSquareId = (((piece.type === "P") || (piece.type === "p")) && (toSquareX === squareX) && (Math.abs(toSquareY - squareY) == 2)) ? toSquareId : null;
                 }
-                return [{id: toSquareId, fromId: squareId}];
-                // TODO: promotion
+                if ((this.onPromotion !== null) && (((piece.type === "P") && (toSquareY === (8 - 1))) || ((piece.type === "p") && (toSquareY === 0))))
+                    this.onPromotion(toSquareId);
+                const changedSquares = [{id: toSquareId, fromId: squareId}];
+                if (this.onMoved !== null)
+                    this.onMoved(changedSquares);
+                return changedSquares;
             }
 
             // untested:
@@ -662,6 +680,14 @@
             return document.getElementById(id); // TODO: can convert id to board child index and access child directly
         }
 
+        let promoteDialog = null
+
+        board.onPromotion = function(squareId) {
+            promoteDialog = document.createElement("div");
+            promoteDialog.id = "promoteDialog";
+            // TODO: ...
+        }
+
         let movingPiece = null;
 
         function updateDocBoard(changedSquares = null, animate = false) {
@@ -684,14 +710,19 @@
                     }
                 }
                 else {
+                    let docPiece = null;
                     if (animateFromSquareId !== null) {
                         const squareClientRect = docSquare.getBoundingClientRect();
                         const fromSquareClientRect = getSquare(docBoard, animateFromSquareId).getBoundingClientRect();
                         docSquare.innerHTML = "<svg class=\"piece\" style=\"--startingX: " + (fromSquareClientRect.x - squareClientRect.x) + "px; --startingY: " + (fromSquareClientRect.y - squareClientRect.y) + "px;\"><use href=\"#piece_" + piece.type + "\"/></svg>";
+                        docPiece = docSquare.lastElementChild;
+                        docPiece.ontransitionstart = function(e) { e.currentTarget.style.zIndex = 2; };
+                        docPiece.ontransitionend = function(e) { e.currentTarget.style.zIndex = 1; };
                     }
-                    else
+                    else {
                         docSquare.innerHTML = "<svg class=\"piece\"><use href=\"#piece_" + piece.type + "\"/></svg>";
-                    const docPiece = docSquare.lastElementChild;
+                        docPiece = docSquare.lastElementChild;
+                    }
                     docPiece.onclick = function(e) {
                         e.preventDefault();
                         e.stopPropagation();
