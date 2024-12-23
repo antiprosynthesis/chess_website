@@ -321,8 +321,6 @@
                 this.enPassantPawnSquareId = null;
             }
 
-            // TODO: getPotentialMoves(squareId)
-
             movePiece(squareId, toSquareId, testOnly = false, allowCheck = false, allowCastling = true, allowEnPassant = true) {
                 if (squareId === toSquareId)
                     return null; // can't move to same square
@@ -440,6 +438,7 @@
                 // TODO: promotion
             }
 
+            // untested:
             getPossibleMoves(squareId, allowCheck = false, allowCastling = true, allowEnPassant = true) {
                 const squareX = Board.squareIdToX(squareId);
                 const squareY = Board.squareIdToY(squareId);
