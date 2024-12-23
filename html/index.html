@@ -10,6 +10,7 @@
             --squareBlackColor: hsl(26, 38%, 55%);
             --squareWhiteSelectedColor: hsl(55, 87%, 70%);
             --squareBlackSelectedColor: hsl(50, 67%, 58%);
+            --pieceMoveTime: 150ms;
         }
         body {
             touch-action: none;
@@ -39,12 +40,14 @@
         }
         .piece {
             position: absolute;
-            left: 0;
-            top: 0;
             width: 100%;
             height: 100%;
             z-index: 1;
             cursor: grab;
+            transition: translate var(--pieceMoveTime) linear;
+            @starting-style {
+                translate: var(--startingX) var(--startingY);
+            }
         }
     </style>
 </head>
@@ -482,12 +485,9 @@
                         if ((toSquareX < 0) || (toSquareY < 0) || (toSquareX >= 8) || (toSquareY >= 8))
                             continue; // move out of bounds
                         const toPiece = this.squares[Board.squareXyToIndex(toSquareX, toSquareY)];
-                        if (this.toPiece === null) {
-                            if (!allowEnPassant || (this.enPassantPawnSquareId === null))
+                        if (toPiece === null)
+                            if (!allowEnPassant || (this.enPassantPawnSquareId === null) || (this.movePiece(squareId, Board.squareXyToId(toSquareX, toSquareY), true, allowCheck, allowCastling, allowEnPassant) === null))
                                 continue;
-                            if (this.movePiece(squareId, Board.squareXyToId(toSquareX, toSquareY), true, allowCheck, allowCastling, allowEnPassant) === null)
-                                continue;
-                        }
                         else {
                             if (toPiece.isBlack() === piece.isBlack())
                                 continue; // can't capture piece of same color
@@ -684,13 +684,14 @@
                     }
                 }
                 else {
-                    docSquare.innerHTML = "<svg class=\"piece\"><use href=\"#piece_" + piece.type + "\"/></svg>";
-                    const docPiece = docSquare.lastElementChild;
                     if (animateFromSquareId !== null) {
                         const squareClientRect = docSquare.getBoundingClientRect();
                         const fromSquareClientRect = getSquare(docBoard, animateFromSquareId).getBoundingClientRect();
-                        docPiece.animate([{ left: (fromSquareClientRect.x - squareClientRect.x) + "px", top: (fromSquareClientRect.y - squareClientRect.y) + "px" }, { left: 0, top: 0 }], 100);
+                        docSquare.innerHTML = "<svg class=\"piece\" style=\"--startingX: " + (fromSquareClientRect.x - squareClientRect.x) + "px; --startingY: " + (fromSquareClientRect.y - squareClientRect.y) + "px;\"><use href=\"#piece_" + piece.type + "\"/></svg>";
                     }
+                    else
+                        docSquare.innerHTML = "<svg class=\"piece\"><use href=\"#piece_" + piece.type + "\"/></svg>";
+                    const docPiece = docSquare.lastElementChild;
                     docPiece.onclick = function(e) {
                         e.preventDefault();
                         e.stopPropagation();
