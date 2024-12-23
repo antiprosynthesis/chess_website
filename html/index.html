@@ -321,6 +321,8 @@
                 this.enPassantPawnSquareId = null;
             }
 
+            // TODO: getPotentialMoves(squareId)
+
             movePiece(squareId, toSquareId, testOnly = false, allowCheck = false, allowCastling = true, allowEnPassant = true) {
                 if (squareId === toSquareId)
                     return null; // can't move to same square
@@ -409,9 +411,9 @@
                             break;
                         }
                         if ((pieceX < 0) || (pieceY < 0) || (pieceX >= 8) || (pieceY >= 8))
-                            break;
+                            break; // out of bounds
                         if (this.squares[Board.squareXyToIndex(pieceX, pieceY)] !== null)
-                            break;
+                            break; // piece in the way
                     }
                     if (valid)
                         break;
@@ -436,6 +438,86 @@
                 }
                 return [{id: toSquareId, fromId: squareId}];
                 // TODO: promotion
+            }
+
+            getPossibleMoves(squareId, allowCheck = false, allowCastling = true, allowEnPassant = true) {
+                const squareX = Board.squareIdToX(squareId);
+                const squareY = Board.squareIdToY(squareId);
+                const piece = this.squares[Board.squareXyToIndex(squareX, squareY)];
+                if (piece === null)
+                    return []; // no piece to move
+                const possibleMoves = [];
+                const basicMoves = piece.getBasicMoves();
+                for (const basicSteps of basicMoves.steps) {
+                    let toSquareX = squareX;
+                    let toSquareY = squareY;
+                    for (let step = 1; step <= basicMoves.maxSteps; ++step) {
+                        toSquareX += basicSteps[0];
+                        toSquareY += basicSteps[1];
+                        if ((toSquareX < 0) || (toSquareY < 0) || (toSquareX >= 8) || (toSquareY >= 8))
+                            break; // move out of bounds
+                        const toPiece = this.squares[Board.squareXyToIndex(toSquareX, toSquareY)];
+                        if (toPiece !== null) {
+                            if (toPiece.isBlack() === piece.isBlack())
+                                break; // can't move to square with same color piece
+                            if ((piece.type === "P") || (piece.type === "p"))
+                                break; // pawn can't move-capture
+                        }
+                        if (!allowCheck) {
+                            this.squares[Board.squareXyToIndex(squareX, squareY)] = null;
+                            this.squares[Board.squareXyToIndex(toSquareX, toSquareY)] = piece;
+                            const inCheck = this.isInCheck(piece.isBlack());
+                            this.squares[Board.squareXyToIndex(toSquareX, toSquareY)] = toPiece;
+                            this.squares[Board.squareXyToIndex(squareX, squareY)] = piece;
+                            if (inCheck)
+                                break; // move causes check
+                        }
+                        possibleMoves.push(Board.squareXyToId(toSquareX, toSquareY));
+                    }
+                }
+                if ((piece.type === "P") || (piece.type === "p")) {
+                    const captureMoves = piece.getBasicMoves(capture);
+                    for (const captureSteps of captureMoves.steps) {
+                        const toSquareX = squareX + captureSteps[0];
+                        const toSquareY = squareY + captureSteps[1];
+                        if ((toSquareX < 0) || (toSquareY < 0) || (toSquareX >= 8) || (toSquareY >= 8))
+                            continue; // move out of bounds
+                        const toPiece = this.squares[Board.squareXyToIndex(toSquareX, toSquareY)];
+                        if (this.toPiece === null) {
+                            if (!allowEnPassant || (this.enPassantPawnSquareId === null))
+                                continue;
+                            if (this.movePiece(squareId, Board.squareXyToId(toSquareX, toSquareY), true, allowCheck, allowCastling, allowEnPassant) === null)
+                                continue;
+                        }
+                        else {
+                            if (toPiece.isBlack() === piece.isBlack())
+                                continue; // can't capture piece of same color
+                            if (!allowCheck) {
+                                this.squares[Board.squareXyToIndex(squareX, squareY)] = null;
+                                this.squares[Board.squareXyToIndex(toSquareX, toSquareY)] = piece;
+                                const inCheck = this.isInCheck(piece.isBlack());
+                                this.squares[Board.squareXyToIndex(toSquareX, toSquareY)] = toPiece;
+                                this.squares[Board.squareXyToIndex(squareX, squareY)] = piece;
+                                if (inCheck)
+                                    continue; // move causes check
+                            }
+                        }
+                        possibleMoves.push(Board.squareXyToId(toSquareX, toSquareY));
+                    }
+                }
+                if (allowCastling && ((piece.type === "K") || (piece.type === "k")) && !piece.moved) {
+                    if ((squareX + 2) < 8) {
+                        const toSquareId = Board.squareXyToId(squareX + 2, squareY);
+                        if (this.movePiece(squareId, toSquareId, true, allowCheck, allowCastling, allowEnPassant) !== null)
+                            possibleMoves.push(toSquareId)
+                    }
+                    if ((squareX - 2) >= 0) {
+                        const toSquareId = Board.squareXyToId(squareX - 2, squareY);
+                        if (this.movePiece(squareId, toSquareId, true, allowCheck, allowCastling, allowEnPassant) !== null)
+                            possibleMoves.push(toSquareId)
+                    }
+                }
+                return possibleMoves;
             }
 
             getAttackers(squareId, allowCheck = true) {
@@ -464,10 +546,8 @@
                     const piece = this.squares[i];
                     if ((piece === null) || (piece.isBlack() !== black))
                         continue;
-                    const squareId = Board.squareIndexToId(i);
-                    for (let j = 0; j < this.squares.length; ++j) // TODO: can reduce this significantly based on piece type
-                        if (this.movePiece(squareId, Board.squareIndexToId(j), true) !== null)
-                            return true;
+                    if (getPossibleMoves(Board.squareIndexToId(i)).length !== 0)
+                        return true;
                 }
                 return false;
             }
