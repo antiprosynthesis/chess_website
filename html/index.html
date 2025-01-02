@@ -63,6 +63,11 @@
             background-color: white;
             box-shadow: 0px 0px 20px rgba(0, 0, 0, 0.25);
         }
+        .promoteDialogPiece {
+            position: absolute;
+            aspect-ratio: 1;
+            width: 100%;
+        }
     </style>
 </head>
 <body>
@@ -337,7 +342,6 @@
                     this.squares.push(null);
                 this.enPassantPawnSquareId = null;
                 this.onPromotion = null; // function(squareId) {}
-                this.onMoved = null; // function(changedSquares) {}
             }
 
             movePiece(squareId, toSquareId, testOnly = false, allowCheck = false, allowCastling = true, allowEnPassant = true) {
@@ -386,10 +390,7 @@
                         rookPiece.moved = true;
                         this.enPassantPawnSquareId = null;
                     }
-                    const changedSquares = [{id: toSquareId, fromId: squareId}, {id: Board.squareXyToId(toRookSquareX, squareY), fromId: Board.squareXyToId(rookSquareX, squareY)}];
-                    if (this.onMoved !== null)
-                        this.onMoved(changedSquares);
-                    return changedSquares;
+                    return [{id: toSquareId, fromId: squareId}, {id: Board.squareXyToId(toRookSquareX, squareY), fromId: Board.squareXyToId(rookSquareX, squareY)}];
                 }
                 if (allowEnPassant && ((piece.type === "P") || (piece.type === "p")) && (this.enPassantPawnSquareId !== null)) {
                     const enPassantPawnSquareX = Board.squareIdToX(this.enPassantPawnSquareId);
@@ -415,10 +416,7 @@
                             piece.moved = true;
                             this.enPassantPawnSquareId = null;
                         }
-                        const changedSquares = [{id: toSquareId, fromId: squareId}, {id: enPassantPawnSquareId, fromId: enPassantPawnSquareId}];
-                        if (this.onMoved !== null)
-                            this.onMoved(changedSquares);
-                        return changedSquares;
+                        return [{id: toSquareId, fromId: squareId}, {id: enPassantPawnSquareId, fromId: enPassantPawnSquareId}];
                     }
                 }
                 let valid = false;
@@ -461,10 +459,7 @@
                 }
                 if ((this.onPromotion !== null) && (((piece.type === "P") && (toSquareY === (8 - 1))) || ((piece.type === "p") && (toSquareY === 0))))
                     this.onPromotion(toSquareId);
-                const changedSquares = [{id: toSquareId, fromId: squareId}];
-                if (this.onMoved !== null)
-                    this.onMoved(changedSquares);
-                return changedSquares;
+                return [{id: toSquareId, fromId: squareId}];
             }
 
             // untested:
@@ -711,10 +706,11 @@
                 promoteDialog.style.top = (squareClientRect.y - boardClientRect.y)/boardClientRect.height*100 + "%";
                 promoteDialog.style.height = (bottomSquareClientRect.y + bottomSquareClientRect.height - squareClientRect.y)/boardClientRect.height*100 + "%";
             }
-            console.log(promoteDialog.style.left);
-            console.log(promoteDialog.style.width);
-            console.log(promoteDialog.style.top);
-            console.log(promoteDialog.style.height);
+            const pieceTypes = board.getPiece(squareId).isBlack() ? "nbrq" : "QRBN";            
+            let piecesHtml = "";
+            for (let i = 0; i < 4; ++i)
+                piecesHtml += "<svg class=\"promoteDialogPiece\" style=\"top: " + 25*i + "%;\"><use href=\"#piece_" + pieceTypes[i] + "\"/></svg>"
+            promoteDialog.innerHTML = piecesHtml;
             promoteDialogArea.appendChild(promoteDialog);
         }
 
