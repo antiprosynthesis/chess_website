@@ -10,7 +10,7 @@
             --squareBlackColor: hsl(26, 38%, 55%);
             --squareWhiteSelectedColor: hsl(55, 87%, 70%);
             --squareBlackSelectedColor: hsl(50, 67%, 58%);
-            --pieceMoveTime: 150ms;
+            --animationTime: 150ms;
         }
         body {
             overflow: hidden;
@@ -46,7 +46,7 @@
             height: 100%;
             z-index: 1;
             cursor: grab;
-            transition: translate var(--pieceMoveTime) linear;
+            transition: translate var(--animationTime) linear;
             @starting-style {
                 translate: var(--startingX) var(--startingY);
             }
@@ -67,6 +67,7 @@
             position: absolute;
             aspect-ratio: 1;
             width: 100%;
+            cursor: pointer;
         }
     </style>
 </head>
@@ -709,108 +710,117 @@
             const pieceTypes = board.getPiece(squareId).isBlack() ? "nbrq" : "QRBN";            
             let piecesHtml = "";
             for (let i = 0; i < 4; ++i)
-                piecesHtml += "<svg class=\"promoteDialogPiece\" style=\"top: " + 25*i + "%;\"><use href=\"#piece_" + pieceTypes[i] + "\"/></svg>"
+                piecesHtml += "<svg class=\"promoteDialogPiece\"><use href=\"#piece_" + pieceTypes[i] + "\"/></svg>";
             promoteDialog.innerHTML = piecesHtml;
+            for (let i = 0, pieceWidgets = promoteDialog.children; i < 4; ++i) {
+                pieceWidgets[i].style.top = 25*i + "%";
+                pieceWidgets[i].onclick = function(e) {
+                    board.getPiece(squareId).type = pieceTypes[i];
+                    updateSquareWidget(squareId);
+                    boardWidget.removeChild(promoteDialogArea);
+                };
+            }                
             promoteDialogArea.appendChild(promoteDialog);
-        }
+        };
 
         let movingPiece = null;
 
-        function updateBoardWidget(changedSquares = null, animate = false) {
-            const updateSquareWidget = function(squareId, animateFromSquareId = null) {
-                const squareWidget = getSquareWidget(boardWidget, squareId);
-                const piece = board.getPiece(squareId);
-                if (piece === null) {
-                    squareWidget.replaceChildren();
-                    squareWidget.onclick = function(e) {
+        function updateSquareWidget(squareId, animateFromSquareId = null) {
+            const squareWidget = getSquareWidget(boardWidget, squareId);
+            const piece = board.getPiece(squareId);
+            if (piece === null) {
+                squareWidget.replaceChildren();
+                squareWidget.onclick = function(e) {
+                    e.preventDefault();
+                    if (movingPiece === null)
+                        return;
+                    const fromSquare = movingPiece.parentElement;
+                    fromSquare.style.backgroundColor = getStyleRoot().getPropertyValue(Board.isSquareBlack(fromSquare.id) ? "--squareBlackColor" : "--squareWhiteColor");
+                    const toSquare = e.currentTarget; 
+                    const changedSquares = board.movePiece(fromSquare.id, toSquare.id);
+                    if (changedSquares !== null)
+                        updateBoardWidget(changedSquares, true);
+                    movingPiece = null;
+                };
+            }
+            else {
+                let pieceWidget = null;
+                if (animateFromSquareId !== null) {
+                    const squareClientRect = squareWidget.getBoundingClientRect();
+                    const fromSquareClientRect = getSquareWidget(boardWidget, animateFromSquareId).getBoundingClientRect();
+                    squareWidget.innerHTML = "<svg class=\"piece\" style=\"--startingX: " + (fromSquareClientRect.x - squareClientRect.x) + "px; --startingY: " + (fromSquareClientRect.y - squareClientRect.y) + "px;\"><use href=\"#piece_" + piece.type + "\"/></svg>";
+                    pieceWidget = squareWidget.lastElementChild;
+                    pieceWidget.ontransitionstart = function(e) { e.currentTarget.style.zIndex = 2; };
+                    pieceWidget.ontransitionend = function(e) { e.currentTarget.style.zIndex = 1; };
+                }
+                else {
+                    squareWidget.innerHTML = "<svg class=\"piece\"><use href=\"#piece_" + piece.type + "\"/></svg>";
+                    pieceWidget = squareWidget.lastElementChild;
+                }
+                pieceWidget.onclick = function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                };
+                pieceWidget.onpointerdown = function(e) {
+                    e.preventDefault();
+                    if (movingPiece !== null) {
+                        const fromSquare = movingPiece.parentElement;
+                        fromSquare.style.backgroundColor = getStyleRoot().getPropertyValue(Board.isSquareBlack(fromSquare.id) ? "--squareBlackColor" : "--squareWhiteColor");
+                        const toSquare = e.currentTarget.parentElement;
+                        movingPiece = null;
+                        if (board.getPiece(fromSquare.id).isBlack() !== board.getPiece(toSquare.id).isBlack()) {
+                            const changedSquares = board.movePiece(fromSquare.id, toSquare.id);
+                            if (changedSquares !== null)
+                                updateBoardWidget(changedSquares, true);
+                            return;
+                        }
+                    }
+                    movingPiece = e.currentTarget;
+                    movingPiece.style.zIndex = 2;
+                    movingPiece.style.cursor = "grabbing";
+                    boardWidget.onpointermove = function(e) {
                         e.preventDefault();
                         if (movingPiece === null)
                             return;
+                        const fromSquareClientRect = movingPiece.parentElement.getBoundingClientRect();
+                        movingPiece.style.left = (e.clientX - fromSquareClientRect.x - fromSquareClientRect.width/2) + "px";
+                        movingPiece.style.top = (e.clientY - fromSquareClientRect.y - fromSquareClientRect.height/2) + "px";
+                    };
+                    boardWidget.onpointerup = function(e) {
+                        e.preventDefault();
+                        boardWidget.onpointermove = null;
+                        boardWidget.onpointerup = null;
+                        if (movingPiece === null)
+                            return;
                         const fromSquare = movingPiece.parentElement;
-                        fromSquare.style.backgroundColor = getStyleRoot().getPropertyValue(Board.isSquareBlack(fromSquare.id) ? "--squareBlackColor" : "--squareWhiteColor");
-                        const toSquare = e.currentTarget; 
-                        const changedSquares = board.movePiece(fromSquare.id, toSquare.id);
-                        if (changedSquares !== null)
-                            updateBoardWidget(changedSquares, true);
+                        movingPiece.style.left = 0;
+                        movingPiece.style.top = 0;
+                        movingPiece.style.zIndex = 1;
+                        movingPiece.style.cursor = "grab";
+                        let toSquare = null;
+                        for (const squareWidget of boardWidget.children) {
+                            const squareWidgetClientRect = squareWidget.getBoundingClientRect();
+                            if ((e.clientX >= squareWidgetClientRect.left) && (e.clientX < squareWidgetClientRect.right) && (e.clientY >= squareWidgetClientRect.top) && (e.clientY < squareWidgetClientRect.bottom)) {
+                                toSquare = squareWidget;
+                                break;
+                            }
+                        }
+                        if (toSquare !== null) {
+                            if (toSquare.id === fromSquare.id) {
+                                fromSquare.style.backgroundColor = getStyleRoot().getPropertyValue(Board.isSquareBlack(fromSquare.id) ? "--squareBlackSelectedColor" : "--squareWhiteSelectedColor");
+                                return;
+                            }
+                            const changedSquares = board.movePiece(fromSquare.id, toSquare.id);
+                            if (changedSquares !== null)
+                                updateBoardWidget(changedSquares);
+                        }
                         movingPiece = null;
-                    }
-                }
-                else {
-                    let pieceWidget = null;
-                    if (animateFromSquareId !== null) {
-                        const squareClientRect = squareWidget.getBoundingClientRect();
-                        const fromSquareClientRect = getSquareWidget(boardWidget, animateFromSquareId).getBoundingClientRect();
-                        squareWidget.innerHTML = "<svg class=\"piece\" style=\"--startingX: " + (fromSquareClientRect.x - squareClientRect.x) + "px; --startingY: " + (fromSquareClientRect.y - squareClientRect.y) + "px;\"><use href=\"#piece_" + piece.type + "\"/></svg>";
-                        pieceWidget = squareWidget.lastElementChild;
-                        pieceWidget.ontransitionstart = function(e) { e.currentTarget.style.zIndex = 2; };
-                        pieceWidget.ontransitionend = function(e) { e.currentTarget.style.zIndex = 1; };
-                    }
-                    else {
-                        squareWidget.innerHTML = "<svg class=\"piece\"><use href=\"#piece_" + piece.type + "\"/></svg>";
-                        pieceWidget = squareWidget.lastElementChild;
-                    }
-                    pieceWidget.onclick = function(e) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                    }
-                    pieceWidget.onpointerdown = function(e) {
-                        e.preventDefault();
-                        if (movingPiece !== null) {
-                            const fromSquare = movingPiece.parentElement;
-                            fromSquare.style.backgroundColor = getStyleRoot().getPropertyValue(Board.isSquareBlack(fromSquare.id) ? "--squareBlackColor" : "--squareWhiteColor");
-                            const toSquare = e.currentTarget.parentElement;
-                            movingPiece = null;
-                            if (board.getPiece(fromSquare.id).isBlack() !== board.getPiece(toSquare.id).isBlack()) {
-                                const changedSquares = board.movePiece(fromSquare.id, toSquare.id);
-                                if (changedSquares !== null)
-                                    updateBoardWidget(changedSquares, true);
-                                return;
-                            }
-                        }
-                        movingPiece = e.currentTarget;
-                        movingPiece.style.zIndex = 2;
-                        movingPiece.style.cursor = "grabbing";
-                        boardWidget.onpointermove = function(e) {
-                            e.preventDefault();
-                            if (movingPiece === null)
-                                return;
-                            const fromSquareClientRect = movingPiece.parentElement.getBoundingClientRect();
-                            movingPiece.style.left = (e.clientX - fromSquareClientRect.x - fromSquareClientRect.width/2) + "px";
-                            movingPiece.style.top = (e.clientY - fromSquareClientRect.y - fromSquareClientRect.height/2) + "px";
-                        }
-                        boardWidget.onpointerup = function(e) {
-                            e.preventDefault();
-                            boardWidget.onpointermove = null;
-                            boardWidget.onpointerup = null;
-                            if (movingPiece === null)
-                                return;
-                            const fromSquare = movingPiece.parentElement;
-                            movingPiece.style.left = 0;
-                            movingPiece.style.top = 0;
-                            movingPiece.style.zIndex = 1;
-                            movingPiece.style.cursor = "grab";
-                            let toSquare = null;
-                            for (const squareWidget of boardWidget.children) {
-                                const squareWidgetClientRect = squareWidget.getBoundingClientRect();
-                                if ((e.clientX >= squareWidgetClientRect.left) && (e.clientX < squareWidgetClientRect.right) && (e.clientY >= squareWidgetClientRect.top) && (e.clientY < squareWidgetClientRect.bottom)) {
-                                    toSquare = squareWidget;
-                                    break;
-                                }
-                            }
-                            if (toSquare !== null) {
-                                if (toSquare.id === fromSquare.id) {
-                                    fromSquare.style.backgroundColor = getStyleRoot().getPropertyValue(Board.isSquareBlack(fromSquare.id) ? "--squareBlackSelectedColor" : "--squareWhiteSelectedColor");
-                                    return;
-                                }
-                                const changedSquares = board.movePiece(fromSquare.id, toSquare.id);
-                                if (changedSquares !== null)
-                                    updateBoardWidget(changedSquares);
-                            }
-                            movingPiece = null;
-                        }
-                    }
-                }
-            };
+                    };
+                };
+            }
+        };
+
+        function updateBoardWidget(changedSquares = null, animate = false) {
             if (changedSquares === null) {
                 for (const squareWidget of boardWidget.children)
                     updateSquareWidget(squareWidget.id);
