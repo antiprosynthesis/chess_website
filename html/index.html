@@ -719,7 +719,19 @@
                     updateSquareWidget(squareId);
                     boardWidget.removeChild(promoteDialogArea);
                 };
-            }                
+                pieceWidgets[i].onpointerdown = function(e) {
+                    e.stopPropagation();
+                };
+                pieceWidgets[i].onpointerup = function(e) {
+                    e.stopPropagation();
+                };
+            }
+            promoteDialogArea.onpointerdown = function(e) {
+                promoteDialog.style.visibility = "hidden";
+            };
+            promoteDialogArea.onpointerup = function(e) {
+                promoteDialog.style.visibility = "initial";
+            };
             promoteDialogArea.appendChild(promoteDialog);
         };
 
@@ -731,7 +743,6 @@
             if (piece === null) {
                 squareWidget.replaceChildren();
                 squareWidget.onclick = function(e) {
-                    e.preventDefault();
                     if (movingPiece === null)
                         return;
                     const fromSquare = movingPiece.parentElement;
@@ -758,11 +769,9 @@
                     pieceWidget = squareWidget.lastElementChild;
                 }
                 pieceWidget.onclick = function(e) {
-                    e.preventDefault();
                     e.stopPropagation();
                 };
                 pieceWidget.onpointerdown = function(e) {
-                    e.preventDefault();
                     if (movingPiece !== null) {
                         const fromSquare = movingPiece.parentElement;
                         fromSquare.style.backgroundColor = getStyleRoot().getPropertyValue(Board.isSquareBlack(fromSquare.id) ? "--squareBlackColor" : "--squareWhiteColor");
