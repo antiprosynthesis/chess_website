@@ -10,7 +10,7 @@
             --squareBlackColor: hsl(26, 38%, 55%);
             --squareWhiteSelectedColor: hsl(55, 87%, 70%);
             --squareBlackSelectedColor: hsl(50, 67%, 58%);
-            --animationTime: 200ms;
+            --animationTime: 200ms; /* must be in ms */
         }
         body {
             overflow: hidden;
@@ -849,10 +849,11 @@
                     updateSquareWidget(changedSquare.id, animate ? changedSquare.fromId : null);
             }
             if (changedSquares[0].promote === true) {
+                const promoteSquareId = changedSquares[0].id;
                 if (animate === true)
-                    setTimeout(function() { showPromoteDialog(changedSquares[0].id); }, Number(getStyleRoot().getPropertyValue("--animationTime").slice(0, -2)));
+                    setTimeout(function() { showPromoteDialog(promoteSquareId); }, Number(getStyleRoot().getPropertyValue("--animationTime").slice(0, -2)));
                 else
-                    showPromoteDialog(changedSquares[0].id);
+                    showPromoteDialog(promoteSquareId);
             }
         }
 
