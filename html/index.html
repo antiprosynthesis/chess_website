@@ -841,31 +841,35 @@
                     updateSquareWidget(squareWidget.id);
                 return;
             }
-            if (animate === true) {
-                const animationTime = Number(getStyleRoot().getPropertyValue("--animationTime").slice(0, -2));
-                function updateSquareWidgetAnimated(changedSquare) {
-                    updateSquareWidget(changedSquare.fromId);
-                    if (changedSquare.id !== changedSquare.fromId)
-                        updateSquareWidget(changedSquare.id, changedSquare.fromId);
-                }
-                updateSquareWidgetAnimated(changedSquares[0]);
+            const animationTime = Number(getStyleRoot().getPropertyValue("--animationTime").slice(0, -2));
+            function updateChangedSquareWidgets(changedSquare, animate) {
+                updateSquareWidget(changedSquare.fromId);
+                if (changedSquare.id !== changedSquare.fromId)
+                    updateSquareWidget(changedSquare.id, animate ? changedSquare.fromId : null);
+            }
+            if (animate) {
+                updateChangedSquareWidgets(changedSquares[0], true);
                 for (let i = 1, n = changedSquares.length; i < n; ++i) {
                     const changedSquare = changedSquares[i];
-                    setTimeout(function() { updateSquareWidgetAnimated(changedSquare); }, animationTime*i)
-                }
-                if (changedSquares[0].promote === true) {
-                    const promoteSquareId = changedSquares[0].id;
-                    setTimeout(function() { showPromoteDialog(promoteSquareId); }, animationTime);
+                    setTimeout(function() { updateChangedSquareWidgets(changedSquare, true); }, animationTime*i);
                 }
             }
             else {
-                for (const changedSquare of changedSquares) {
-                    updateSquareWidget(changedSquare.fromId);
-                    if (changedSquare.id !== changedSquare.fromId)
-                        updateSquareWidget(changedSquare.id);
+                updateChangedSquareWidgets(changedSquares[0], false);
+                if (changedSquares.length > 1) {
+                    updateChangedSquareWidgets(changedSquares[1], true);
+                    for (let i = 2, n = changedSquares.length; i < n; ++i) {
+                        const changedSquare = changedSquares[i];
+                        setTimeout(function() { updateChangedSquareWidgets(changedSquare, true); }, animationTime*(i - 1));
+                    }
                 }
-                if (changedSquares[0].promote === true)
-                    showPromoteDialog(changedSquares[0].id);
+            }
+            if (changedSquares[0].promote === true) {
+                const promoteSquareId = changedSquares[0].id;
+                if (animate === true)
+                    setTimeout(function() { showPromoteDialog(promoteSquareId); }, animationTime);
+                else
+                    showPromoteDialog(promoteSquareId);
             }
         }
 
