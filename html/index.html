@@ -623,40 +623,38 @@
         }
 
         const board = new Board();
-        board.setPiece("d7", new Piece("P"));
-        board.setPiece("c2", new Piece("p"));
-        // board.setPiece("a1", new Piece("R"));
-        // board.setPiece("b1", new Piece("N"));
-        // board.setPiece("c1", new Piece("B"));
-        // board.setPiece("d1", new Piece("Q"));
-        // board.setPiece("e1", new Piece("K"));
-        // board.setPiece("f1", new Piece("B"));
-        // board.setPiece("g1", new Piece("N"));
-        // board.setPiece("h1", new Piece("R"));
-        // board.setPiece("a2", new Piece("P"));
-        // board.setPiece("b2", new Piece("P")); 
-        // board.setPiece("c2", new Piece("P"));
-        // board.setPiece("d2", new Piece("P"));
-        // board.setPiece("e2", new Piece("P"));
-        // board.setPiece("f2", new Piece("P"));
-        // board.setPiece("g2", new Piece("P"));
-        // board.setPiece("h2", new Piece("P"));
-        // board.setPiece("a7", new Piece("p"));
-        // board.setPiece("b7", new Piece("p"));
-        // board.setPiece("c7", new Piece("p"));
-        // board.setPiece("d7", new Piece("p"));
-        // board.setPiece("e7", new Piece("p"));
-        // board.setPiece("f7", new Piece("p"));
-        // board.setPiece("g7", new Piece("p"));
-        // board.setPiece("h7", new Piece("p"));
-        // board.setPiece("a8", new Piece("r"));
-        // board.setPiece("b8", new Piece("n"));
-        // board.setPiece("c8", new Piece("b"));
-        // board.setPiece("d8", new Piece("q"));
-        // board.setPiece("e8", new Piece("k"));
-        // board.setPiece("f8", new Piece("b"));
-        // board.setPiece("g8", new Piece("n"));
-        // board.setPiece("h8", new Piece("r"));
+        board.setPiece("a1", new Piece("R"));
+        board.setPiece("b1", new Piece("N"));
+        board.setPiece("c1", new Piece("B"));
+        board.setPiece("d1", new Piece("Q"));
+        board.setPiece("e1", new Piece("K"));
+        board.setPiece("f1", new Piece("B"));
+        board.setPiece("g1", new Piece("N"));
+        board.setPiece("h1", new Piece("R"));
+        board.setPiece("a2", new Piece("P"));
+        board.setPiece("b2", new Piece("P")); 
+        board.setPiece("c2", new Piece("P"));
+        board.setPiece("d2", new Piece("P"));
+        board.setPiece("e2", new Piece("P"));
+        board.setPiece("f2", new Piece("P"));
+        board.setPiece("g2", new Piece("P"));
+        board.setPiece("h2", new Piece("P"));
+        board.setPiece("a7", new Piece("p"));
+        board.setPiece("b7", new Piece("p"));
+        board.setPiece("c7", new Piece("p"));
+        board.setPiece("d7", new Piece("p"));
+        board.setPiece("e7", new Piece("p"));
+        board.setPiece("f7", new Piece("p"));
+        board.setPiece("g7", new Piece("p"));
+        board.setPiece("h7", new Piece("p"));
+        board.setPiece("a8", new Piece("r"));
+        board.setPiece("b8", new Piece("n"));
+        board.setPiece("c8", new Piece("b"));
+        board.setPiece("d8", new Piece("q"));
+        board.setPiece("e8", new Piece("k"));
+        board.setPiece("f8", new Piece("b"));
+        board.setPiece("g8", new Piece("n"));
+        board.setPiece("h8", new Piece("r"));
 
         function getStyleRoot() {
             return getComputedStyle(document.documentElement);
@@ -843,17 +841,31 @@
                     updateSquareWidget(squareWidget.id);
                 return;
             }
-            for (const changedSquare of changedSquares) {
-                updateSquareWidget(changedSquare.fromId);
-                if (changedSquare.id !== changedSquare.fromId)
-                    updateSquareWidget(changedSquare.id, animate ? changedSquare.fromId : null);
+            if (animate === true) {
+                const animationTime = Number(getStyleRoot().getPropertyValue("--animationTime").slice(0, -2));
+                function updateSquareWidgetAnimated(changedSquare) {
+                    updateSquareWidget(changedSquare.fromId);
+                    if (changedSquare.id !== changedSquare.fromId)
+                        updateSquareWidget(changedSquare.id, changedSquare.fromId);
+                }
+                updateSquareWidgetAnimated(changedSquares[0]);
+                for (let i = 1, n = changedSquares.length; i < n; ++i) {
+                    const changedSquare = changedSquares[i];
+                    setTimeout(function() { updateSquareWidgetAnimated(changedSquare); }, animationTime*i)
+                }
+                if (changedSquares[0].promote === true) {
+                    const promoteSquareId = changedSquares[0].id;
+                    setTimeout(function() { showPromoteDialog(promoteSquareId); }, animationTime);
+                }
             }
-            if (changedSquares[0].promote === true) {
-                const promoteSquareId = changedSquares[0].id;
-                if (animate === true)
-                    setTimeout(function() { showPromoteDialog(promoteSquareId); }, Number(getStyleRoot().getPropertyValue("--animationTime").slice(0, -2)));
-                else
-                    showPromoteDialog(promoteSquareId);
+            else {
+                for (const changedSquare of changedSquares) {
+                    updateSquareWidget(changedSquare.fromId);
+                    if (changedSquare.id !== changedSquare.fromId)
+                        updateSquareWidget(changedSquare.id);
+                }
+                if (changedSquares[0].promote === true)
+                    showPromoteDialog(changedSquares[0].id);
             }
         }
 
