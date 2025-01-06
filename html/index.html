@@ -10,7 +10,7 @@
             --squareBlackColor: hsl(26, 38%, 55%);
             --squareWhiteSelectedColor: hsl(55, 87%, 70%);
             --squareBlackSelectedColor: hsl(50, 67%, 58%);
-            --animationTime: 150ms;
+            --animationTime: 200ms;
         }
         body {
             overflow: hidden;
@@ -342,7 +342,6 @@
                 for (let i = 0; i < 8*8; ++i)
                     this.squares.push(null);
                 this.enPassantPawnSquareId = null;
-                this.onPromotion = null; // function(squareId) {}
             }
 
             movePiece(squareId, toSquareId, testOnly = false, allowCheck = false, allowCastling = true, allowEnPassant = true) {
@@ -458,9 +457,7 @@
                     piece.moved = true;
                     this.enPassantPawnSquareId = (((piece.type === "P") || (piece.type === "p")) && (toSquareX === squareX) && (Math.abs(toSquareY - squareY) == 2)) ? toSquareId : null;
                 }
-                if ((this.onPromotion !== null) && (((piece.type === "P") && (toSquareY === (8 - 1))) || ((piece.type === "p") && (toSquareY === 0))))
-                    this.onPromotion(toSquareId);
-                return [{id: toSquareId, fromId: squareId}];
+                return [{id: toSquareId, fromId: squareId, promote: ((((piece.type === "P") && (toSquareY === (8 - 1))) || ((piece.type === "p") && (toSquareY === 0))))}];
             }
 
             // untested:
@@ -686,7 +683,7 @@
             return document.getElementById(id); // TODO: can convert id to board child index and access child directly
         }
 
-        board.onPromotion = function(squareId) {
+        function showPromoteDialog(squareId) {
             const promoteDialogArea = document.createElement("div");
             promoteDialogArea.id = "promoteDialogArea";
             boardWidget.appendChild(promoteDialogArea);
@@ -759,10 +756,21 @@
                 if (animateFromSquareId !== null) {
                     const squareClientRect = squareWidget.getBoundingClientRect();
                     const fromSquareClientRect = getSquareWidget(boardWidget, animateFromSquareId).getBoundingClientRect();
-                    squareWidget.innerHTML = "<svg class=\"piece\" style=\"--startingX: " + (fromSquareClientRect.x - squareClientRect.x) + "px; --startingY: " + (fromSquareClientRect.y - squareClientRect.y) + "px;\"><use href=\"#piece_" + piece.type + "\"/></svg>";
+                    const pieceTemplate = document.createElement("template");
+                    pieceTemplate.innerHTML = "<svg class=\"piece\" style=\"--startingX: " + (fromSquareClientRect.x - squareClientRect.x) + "px; --startingY: " + (fromSquareClientRect.y - squareClientRect.y) + "px;\"><use href=\"#piece_" + piece.type + "\"/></svg>";
+                    squareWidget.appendChild(pieceTemplate.content.firstElementChild);
                     pieceWidget = squareWidget.lastElementChild;
-                    pieceWidget.ontransitionstart = function(e) { e.currentTarget.style.zIndex = 2; };
-                    pieceWidget.ontransitionend = function(e) { e.currentTarget.style.zIndex = 1; };
+                    pieceWidget.ontransitionstart = function(e) {
+                        boardWidget.style.pointerEvents = "none";
+                        e.currentTarget.style.zIndex = 2;
+                    };
+                    pieceWidget.ontransitionend = function(e)
+                    {
+                        if (squareWidget.children.length > 1)
+                            squareWidget.firstElementChild.remove();
+                        boardWidget.style.pointerEvents = "initial";
+                        e.currentTarget.style.zIndex = 1;
+                    };
                 }
                 else {
                     squareWidget.innerHTML = "<svg class=\"piece\"><use href=\"#piece_" + piece.type + "\"/></svg>";
@@ -839,6 +847,12 @@
                 updateSquareWidget(changedSquare.fromId);
                 if (changedSquare.id !== changedSquare.fromId)
                     updateSquareWidget(changedSquare.id, animate ? changedSquare.fromId : null);
+            }
+            if (changedSquares[0].promote === true) {
+                if (animate === true)
+                    setTimeout(function() { showPromoteDialog(changedSquares[0].id); }, Number(getStyleRoot().getPropertyValue("--animationTime").slice(0, -2)));
+                else
+                    showPromoteDialog(changedSquares[0].id);
             }
         }
 
