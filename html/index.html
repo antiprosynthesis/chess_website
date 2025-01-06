@@ -856,7 +856,7 @@
             }
             else {
                 updateChangedSquareWidgets(changedSquares[0], false);
-                if (changedSquares.length > 1) {
+                if (changedSquares.length > 1) { // always animate secondary moves (such as the rook when castling)
                     updateChangedSquareWidgets(changedSquares[1], true);
                     for (let i = 2, n = changedSquares.length; i < n; ++i) {
                         const changedSquare = changedSquares[i];
