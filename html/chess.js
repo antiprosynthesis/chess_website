@@ -4,8 +4,12 @@ export class ChessPiece {
         this.moved = false;
     }
 
+    static isBlack(type) {
+        return (type === type.toLowerCase());
+    }
+
     isBlack() {
-        return (this.type === this.type.toLowerCase());
+        return ChessPiece.isBlack(this.type);
     }
 
     getBasicMoves(capture = false) {
@@ -36,6 +40,7 @@ export class Chessboard {
         for (let i = 0; i < 8*8; ++i)
             this.squares.push(null);
         this.enPassantPawnSquareId = null;
+        this.blacksTurn = false;
     }
 
     movePiece(squareId, toSquareId, testOnly = false, allowCheck = false, allowCastling = true, allowEnPassant = true) {
@@ -83,6 +88,7 @@ export class Chessboard {
                 this.squares[Chessboard.squareXyToIndex(toRookSquareX, squareY)] = rookPiece;
                 rookPiece.moved = true;
                 this.enPassantPawnSquareId = null;
+                this.blacksTurn = !this.blacksTurn;
             }
             return [{id: toSquareId, fromId: squareId}, {id: Chessboard.squareXyToId(toRookSquareX, squareY), fromId: Chessboard.squareXyToId(rookSquareX, squareY)}];
         }
@@ -109,6 +115,7 @@ export class Chessboard {
                     this.squares[Chessboard.squareXyToIndex(enPassantPawnSquareX, enPassantPawnSquareY)] = null;
                     piece.moved = true;
                     this.enPassantPawnSquareId = null;
+                    this.blacksTurn = !this.blacksTurn;
                 }
                 return [{id: toSquareId, fromId: squareId}, {id: enPassantPawnSquareId, fromId: enPassantPawnSquareId}];
             }
@@ -150,6 +157,7 @@ export class Chessboard {
             this.squares[Chessboard.squareXyToIndex(toSquareX, toSquareY)] = piece;
             piece.moved = true;
             this.enPassantPawnSquareId = (((piece.type === "P") || (piece.type === "p")) && (toSquareX === squareX) && (Math.abs(toSquareY - squareY) == 2)) ? toSquareId : null;
+            this.blacksTurn = !this.blacksTurn;
         }
         return [{id: toSquareId, fromId: squareId, promote: ((((piece.type === "P") && (toSquareY === (8 - 1))) || ((piece.type === "p") && (toSquareY === 0))))}];
     }

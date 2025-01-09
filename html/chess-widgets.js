@@ -1,4 +1,4 @@
-import { Chessboard } from "./chess.js";
+import { Chessboard, ChessPiece } from "./chess.js";
 
 function getStyleRoot() {
     return getComputedStyle(document.documentElement);
@@ -6,15 +6,20 @@ function getStyleRoot() {
 
 customElements.define("chesspiece-widget",
     class ChessPieceWidget extends HTMLElement {
-        static observedAttributes = ["type"];
-
         constructor() {
             super();
+            this.pieceType = null;
         }
 
-        attributeChangedCallback(name, oldValue, newValue) {
-            if (name === "type")
-                this.style.backgroundImage = "url('./img/chesspieces.svg#" + newValue + "')";
+        set type(pieceType) {
+            if (this.pieceType === pieceType)
+                return;
+            this.pieceType = pieceType;
+            this.style.backgroundImage = "url('./img/chesspieces.svg#" + pieceType + "')";
+        }
+
+        get type() {
+            return this.pieceType;
         }
     }
 );
@@ -53,8 +58,6 @@ customElements.define("chessboard-widget",
                     position: absolute;
                     width: 100%;
                     height: 100%;
-                    z-index: 1;
-                    cursor: grab;
                     transition: translate var(--animationTime) linear;
                     @starting-style {
                         translate: var(--startingX) var(--startingY);
@@ -117,8 +120,7 @@ customElements.define("chessboard-widget",
                         return;
                     const fromSquare = this.movingPiece.parentElement;
                     fromSquare.style.backgroundColor = getStyleRoot().getPropertyValue(Chessboard.isSquareBlack(fromSquare.id) ? "--squareBlackColor" : "--squareWhiteColor");
-                    const toSquare = e.currentTarget; 
-                    const changedSquares = this.board.movePiece(fromSquare.id, toSquare.id);
+                    const changedSquares = this.board.movePiece(fromSquare.id, squareWidget.id);
                     if (changedSquares !== null)
                         this.updateBoardWidget(changedSquares, true);
                     this.movingPiece = null;
@@ -127,7 +129,7 @@ customElements.define("chessboard-widget",
             else {
                 const pieceWidget = document.createElement("chesspiece-widget");
                 pieceWidget.className = "piece";
-                pieceWidget.setAttribute("type", piece.type);
+                pieceWidget.type = piece.type;
                 if (animateFromSquareId !== null) {
                     const squareClientRect = squareWidget.getBoundingClientRect();
                     const fromSquareClientRect = this.getSquareWidget(animateFromSquareId).getBoundingClientRect();
@@ -135,20 +137,23 @@ customElements.define("chessboard-widget",
                     pieceWidget.style.setProperty("--startingY", (fromSquareClientRect.y - squareClientRect.y) + "px");
                     pieceWidget.ontransitionstart = function(e) {
                         this.style.pointerEvents = "none";
-                        e.currentTarget.style.zIndex = 2;
+                        pieceWidget.style.zIndex = 1;
                     }.bind(this);
                     pieceWidget.ontransitionend = function(e)
                     {
                         while (squareWidget.children.length > 1)
                             squareWidget.firstElementChild.remove();
                         this.style.pointerEvents = "initial";
-                        e.currentTarget.style.zIndex = 1;
+                        pieceWidget.style.zIndex = "auto";
                     }.bind(this);
                     squareWidget.appendChild(pieceWidget);
                 }
                 else {
                     squareWidget.replaceChildren(pieceWidget);
                 }
+                pieceWidget.onmouseenter = function(e) {
+                    pieceWidget.parentElement.style.cursor = (ChessPiece.isBlack(pieceWidget.type) === this.board.blacksTurn) ? "grab" : "initial";
+                }.bind(this);
                 pieceWidget.onclick = function(e) {
                     e.stopPropagation();
                 }
@@ -156,7 +161,7 @@ customElements.define("chessboard-widget",
                     if (this.movingPiece !== null) {
                         const fromSquare = this.movingPiece.parentElement;
                         fromSquare.style.backgroundColor = getStyleRoot().getPropertyValue(Chessboard.isSquareBlack(fromSquare.id) ? "--squareBlackColor" : "--squareWhiteColor");
-                        const toSquare = e.currentTarget.parentElement;
+                        const toSquare = pieceWidget.parentElement;
                         this.movingPiece = null;
                         if (this.board.getPiece(fromSquare.id).isBlack() !== this.board.getPiece(toSquare.id).isBlack()) {
                             const changedSquares = this.board.movePiece(fromSquare.id, toSquare.id);
@@ -165,8 +170,10 @@ customElements.define("chessboard-widget",
                             return;
                         }
                     }
-                    this.movingPiece = e.currentTarget;
-                    this.movingPiece.style.zIndex = 2;
+                    if (ChessPiece.isBlack(pieceWidget.type) !== this.board.blacksTurn)
+                        return;
+                    this.movingPiece = pieceWidget;
+                    this.movingPiece.style.zIndex = 1;
                     this.movingPiece.style.cursor = "grabbing";
                     this.onpointermove = function(e) {
                         e.preventDefault();
@@ -185,7 +192,7 @@ customElements.define("chessboard-widget",
                         const fromSquare = this.movingPiece.parentElement;
                         this.movingPiece.style.left = 0;
                         this.movingPiece.style.top = 0;
-                        this.movingPiece.style.zIndex = 1;
+                        this.movingPiece.style.zIndex = "auto";
                         this.movingPiece.style.cursor = "grab";
                         let toSquare = null;
                         for (const squareWidget of this.root.children) {
@@ -278,7 +285,7 @@ customElements.define("chessboard-widget",
                 const pieceType = pieceTypes[i];
                 const pieceWidget = document.createElement("chesspiece-widget");
                 pieceWidget.className = "promoteDialogPiece";
-                pieceWidget.setAttribute("type", pieceType);
+                pieceWidget.type = pieceType;
                 pieceWidget.style.top = String(25*i) + "%";
                 pieceWidget.onclick = function(e) {
                     this.board.getPiece(squareId).type = pieceType;
