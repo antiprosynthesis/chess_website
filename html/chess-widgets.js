@@ -1,4 +1,4 @@
-import { Chessboard, ChessPiece } from "./chessboard.js";
+import { Chessboard } from "./chess.js";
 
 function getStyleRoot() {
     return getComputedStyle(document.documentElement);
