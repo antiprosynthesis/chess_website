@@ -152,7 +152,7 @@ customElements.define("chessboard-widget",
                     squareWidget.replaceChildren(pieceWidget);
                 }
                 pieceWidget.onmouseenter = function(e) {
-                    pieceWidget.parentElement.style.cursor = (ChessPiece.isBlack(pieceWidget.type) === this.board.blacksTurn) ? "grab" : "initial";
+                    pieceWidget.style.cursor = (ChessPiece.isBlack(pieceWidget.type) === this.board.blacksTurn) ? "grab" : "initial";
                 }.bind(this);
                 pieceWidget.onclick = function(e) {
                     e.stopPropagation();
