@@ -29,9 +29,11 @@
         "use strict";
 
         import { Chessboard, ChessPiece } from "./chessboard.js";
-        import { ChessboardWidget } from "./chessboard-widget.js";
+        import "./chessboard-widget.js";
 
         const chessboard = new Chessboard();
+        // chessboard.setPiece("c7", new ChessPiece("P"));
+        // chessboard.setPiece("d2", new ChessPiece("p"));
         chessboard.setPiece("a1", new ChessPiece("R"));
         chessboard.setPiece("b1", new ChessPiece("N"));
         chessboard.setPiece("c1", new ChessPiece("B"));
@@ -72,7 +74,6 @@
         const chessboardWidget = document.createElement("chessboard-widget");
         chessboardWidget.chessboard = chessboard;
         chessboardAreaWidget.appendChild(chessboardWidget);
-
     </script>
 </body>
 </html>
