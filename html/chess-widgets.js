@@ -194,12 +194,7 @@ customElements.define("chessboard-widget",
                         this.#movingPiece.style.left = (e.clientX - fromSquareClientRect.x - fromSquareClientRect.width/2) + "px";
                         this.#movingPiece.style.top = (e.clientY - fromSquareClientRect.y - fromSquareClientRect.height/2) + "px";
                     }.bind(this);
-                    if (this.#pointerId !== null)
-                        return;
-                    this.#pointerId = e.pointerId;
                     this.onpointerup = function(e) {
-                        if (e.pointerId === this.#pointerId)
-                            this.#pointerId = null;
                         e.preventDefault();
                         this.onpointermove = null;
                         this.onpointerup = null;
@@ -330,6 +325,5 @@ customElements.define("chessboard-widget",
         static #styleSheet = null;
         static #styleSheetRefs = 0;
         #movingPiece = null;
-        #pointerId = null; // to disable multitouch
     }
 );
