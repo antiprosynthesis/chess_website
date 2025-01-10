@@ -8,19 +8,20 @@ customElements.define("chesspiece-widget",
     class ChessPieceWidget extends HTMLElement {
         constructor() {
             super();
-            this.pieceType = null;
         }
 
-        set type(pieceType) {
-            if (this.pieceType === pieceType)
+        set type(newType) {
+            if (this.#type === newType)
                 return;
-            this.pieceType = pieceType;
-            this.style.backgroundImage = "url('./img/chesspieces.svg#" + pieceType + "')";
+            this.#type = newType;
+            this.style.backgroundImage = "url('./img/chesspieces.svg#" + newType + "')";
         }
 
         get type() {
-            return this.pieceType;
+            return this.#type;
         }
+
+        #type = null;
     }
 );
 
@@ -28,102 +29,108 @@ customElements.define("chessboard-widget",
     class ChessboardWidget extends HTMLElement {
         constructor() {
             super();
-            this.board = null;
         }
 
         connectedCallback() {
-            this.root = this.attachShadow({ mode: "closed" });
+            this.#root = this.attachShadow({ mode: "closed" });
 
-            const styleSheet = new CSSStyleSheet();
-            styleSheet.replace(/*css*/`
-                :host {
-                    position: relative;
-                    touch-action: none;
-                    aspect-ratio: 1;
-                    margin: auto;
-                    max-height: 100%;
-                    display: grid;
-                    grid-template-columns: auto auto auto auto auto auto auto auto;
-                    caret-color: transparent;
-                }
-                .squareWhite {
-                    position: relative;
-                    background-color: var(--squareWhiteColor);
-                }
-                .squareBlack {
-                    position: relative;
-                    background-color: var(--squareBlackColor);
-                }
-                .piece {
-                    position: absolute;
-                    width: 100%;
-                    height: 100%;
-                    transition: translate var(--animationTime) linear;
-                    @starting-style {
-                        translate: var(--startingX) var(--startingY);
+            if (ChessboardWidget.#styleSheetRefs++ === 0) {
+                ChessboardWidget.#styleSheet = new CSSStyleSheet();
+                ChessboardWidget.#styleSheet.replace(/*css*/`
+                    :host {
+                        position: relative;
+                        touch-action: none;
+                        aspect-ratio: 1;
+                        margin: auto;
+                        max-height: 100%;
+                        display: grid;
+                        grid-template-columns: auto auto auto auto auto auto auto auto;
+                        caret-color: transparent;
                     }
-                }
-                #promoteDialogArea {
-                    position: absolute;
-                    width: 100%;
-                    height: 100%;
-                    z-index: 10;
-                }
-                #promoteDialog {
-                    position: absolute;
-                    z-index: 11;
-                    background-color: white;
-                    box-shadow: 0px 0px 20px rgba(0, 0, 0, 0.25);
-                }
-                .promoteDialogPiece {
-                    position: absolute;
-                    aspect-ratio: 1;
-                    width: 100%;
-                    cursor: pointer;
-                }
-            `);
+                    .squareWhite {
+                        position: relative;
+                        background-color: var(--squareWhiteColor);
+                    }
+                    .squareBlack {
+                        position: relative;
+                        background-color: var(--squareBlackColor);
+                    }
+                    .piece {
+                        position: absolute;
+                        width: 100%;
+                        height: 100%;
+                        transition: translate var(--animationTime) linear;
+                        @starting-style {
+                            translate: var(--startingX) var(--startingY);
+                        }
+                    }
+                    #promoteDialogArea {
+                        position: absolute;
+                        width: 100%;
+                        height: 100%;
+                        z-index: 10;
+                    }
+                    #promoteDialog {
+                        position: absolute;
+                        z-index: 11;
+                        background-color: white;
+                        box-shadow: 0px 0px 20px rgba(0, 0, 0, 0.25);
+                    }
+                    .promoteDialogPiece {
+                        position: absolute;
+                        aspect-ratio: 1;
+                        width: 100%;
+                        cursor: pointer;
+                    }
+                `);
+            }
 
-            this.root.adoptedStyleSheets = [styleSheet];
+            this.#root.adoptedStyleSheets = [ChessboardWidget.#styleSheet];
 
             for (let y = 0; y < 8; ++y) {
                 for (let x = 0; x < 8; ++x) {
                     const squareWidget = document.createElement("div");
                     squareWidget.id = Chessboard.squareXyToId(x, 8 - 1 - y);
                     squareWidget.className = "square" + (Chessboard.isSquareBlack(squareWidget.id) ? "Black" : "White");
-                    this.root.appendChild(squareWidget);
+                    this.#root.appendChild(squareWidget);
                 }
             }
 
-            this.movingPiece = null;
+            this.#movingPiece = null;
 
-            if (this.board !== null)
-                this.updateBoardWidget();
+            if (this.#chessboard !== null)
+                this.#updateWidget();
+        }
+        
+        disconnectedCallback() {
+            if (--ChessboardWidget.#styleSheetRefs === 0)
+                ChessboardWidget.#styleSheet = null;
         }
 
-        set chessboard(board) {
-            this.board = board;
+        set chessboard(newChessboard) {
+            this.#chessboard = newChessboard;
             if (this.isConnected)
-                this.updateBoardWidget();
+                this.#updateWidget();
         }
 
-        getSquareWidget(id) {
-            return this.root.getElementById(id);
+        #getSquareWidget(id) {
+            return this.#root.getElementById(id);
         }
 
-        updateSquareWidget(squareId, animateFromSquareId = null) {
-            const squareWidget = this.getSquareWidget(squareId);
-            const piece = this.board.getPiece(squareId);
+        #updateSquareWidget(squareId, animateFromSquareId = null) {
+            const squareWidget = this.#getSquareWidget(squareId);
+            const piece = this.#chessboard.getPiece(squareId);
             if (piece === null) {
                 squareWidget.replaceChildren();
                 squareWidget.onclick = function(e) {
-                    if (this.movingPiece === null)
+                    if (this.#movingPiece === null)
                         return;
-                    const fromSquare = this.movingPiece.parentElement;
+                    const fromSquare = this.#movingPiece.parentElement;
                     fromSquare.style.backgroundColor = getStyleRoot().getPropertyValue(Chessboard.isSquareBlack(fromSquare.id) ? "--squareBlackColor" : "--squareWhiteColor");
-                    const changedSquares = this.board.movePiece(fromSquare.id, squareWidget.id);
+                    const changedSquares = this.#chessboard.movePiece(fromSquare.id, squareWidget.id);
                     if (changedSquares !== null)
-                        this.updateBoardWidget(changedSquares, true);
-                    this.movingPiece = null;
+                        this.#updateWidget(changedSquares, true);
+                    this.#movingPiece = null;
                 }.bind(this);
             }
             else {
@@ -132,7 +139,7 @@ customElements.define("chessboard-widget",
                 pieceWidget.type = piece.type;
                 if (animateFromSquareId !== null) {
                     const squareClientRect = squareWidget.getBoundingClientRect();
-                    const fromSquareClientRect = this.getSquareWidget(animateFromSquareId).getBoundingClientRect();
+                    const fromSquareClientRect = this.#getSquareWidget(animateFromSquareId).getBoundingClientRect();
                     pieceWidget.style.setProperty("--startingX", (fromSquareClientRect.x - squareClientRect.x) + "px");
                     pieceWidget.style.setProperty("--startingY", (fromSquareClientRect.y - squareClientRect.y) + "px");
                     pieceWidget.ontransitionstart = function(e) {
@@ -152,50 +159,50 @@ customElements.define("chessboard-widget",
                     squareWidget.replaceChildren(pieceWidget);
                 }
                 pieceWidget.onmouseenter = function(e) {
-                    pieceWidget.style.cursor = (ChessPiece.isBlack(pieceWidget.type) === this.board.blacksTurn) ? "grab" : "initial";
+                    pieceWidget.style.cursor = (ChessPiece.isBlack(pieceWidget.type) === this.#chessboard.blacksTurn) ? "grab" : "initial";
                 }.bind(this);
                 pieceWidget.onclick = function(e) {
                     e.stopPropagation();
                 }
                 pieceWidget.onpointerdown = function(e) {
-                    if (this.movingPiece !== null) {
-                        const fromSquare = this.movingPiece.parentElement;
+                    if (this.#movingPiece !== null) {
+                        const fromSquare = this.#movingPiece.parentElement;
                         fromSquare.style.backgroundColor = getStyleRoot().getPropertyValue(Chessboard.isSquareBlack(fromSquare.id) ? "--squareBlackColor" : "--squareWhiteColor");
                         const toSquare = pieceWidget.parentElement;
-                        this.movingPiece = null;
-                        if (this.board.getPiece(fromSquare.id).isBlack() !== this.board.getPiece(toSquare.id).isBlack()) {
-                            const changedSquares = this.board.movePiece(fromSquare.id, toSquare.id);
+                        this.#movingPiece = null;
+                        if (this.#chessboard.getPiece(fromSquare.id).isBlack() !== this.#chessboard.getPiece(toSquare.id).isBlack()) {
+                            const changedSquares = this.#chessboard.movePiece(fromSquare.id, toSquare.id);
                             if (changedSquares !== null)
-                                this.updateBoardWidget(changedSquares, true);
+                                this.#updateWidget(changedSquares, true);
                             return;
                         }
                     }
-                    if (ChessPiece.isBlack(pieceWidget.type) !== this.board.blacksTurn)
+                    if (ChessPiece.isBlack(pieceWidget.type) !== this.#chessboard.blacksTurn)
                         return;
-                    this.movingPiece = pieceWidget;
-                    this.movingPiece.style.zIndex = 1;
-                    this.movingPiece.style.cursor = "grabbing";
+                    this.#movingPiece = pieceWidget;
+                    this.#movingPiece.style.zIndex = 1;
+                    this.#movingPiece.style.cursor = "grabbing";
                     this.onpointermove = function(e) {
                         e.preventDefault();
-                        if (this.movingPiece === null)
+                        if (this.#movingPiece === null)
                             return;
-                        const fromSquareClientRect = this.movingPiece.parentElement.getBoundingClientRect();
-                        this.movingPiece.style.left = (e.clientX - fromSquareClientRect.x - fromSquareClientRect.width/2) + "px";
-                        this.movingPiece.style.top = (e.clientY - fromSquareClientRect.y - fromSquareClientRect.height/2) + "px";
+                        const fromSquareClientRect = this.#movingPiece.parentElement.getBoundingClientRect();
+                        this.#movingPiece.style.left = (e.clientX - fromSquareClientRect.x - fromSquareClientRect.width/2) + "px";
+                        this.#movingPiece.style.top = (e.clientY - fromSquareClientRect.y - fromSquareClientRect.height/2) + "px";
                     }.bind(this);
                     this.onpointerup = function(e) {
                         e.preventDefault();
                         this.onpointermove = null;
                         this.onpointerup = null;
-                        if (this.movingPiece === null)
+                        if (this.#movingPiece === null)
                             return;
-                        const fromSquare = this.movingPiece.parentElement;
-                        this.movingPiece.style.left = 0;
-                        this.movingPiece.style.top = 0;
-                        this.movingPiece.style.zIndex = "auto";
-                        this.movingPiece.style.cursor = "grab";
+                        const fromSquare = this.#movingPiece.parentElement;
+                        this.#movingPiece.style.left = 0;
+                        this.#movingPiece.style.top = 0;
+                        this.#movingPiece.style.zIndex = "auto";
+                        this.#movingPiece.style.cursor = "grab";
                         let toSquare = null;
-                        for (const squareWidget of this.root.children) {
+                        for (const squareWidget of this.#root.children) {
                             const squareWidgetClientRect = squareWidget.getBoundingClientRect();
                             if ((e.clientX >= squareWidgetClientRect.left) && (e.clientX < squareWidgetClientRect.right) && (e.clientY >= squareWidgetClientRect.top) && (e.clientY < squareWidgetClientRect.bottom)) {
                                 toSquare = squareWidget;
@@ -207,29 +214,29 @@ customElements.define("chessboard-widget",
                                 fromSquare.style.backgroundColor = getStyleRoot().getPropertyValue(Chessboard.isSquareBlack(fromSquare.id) ? "--squareBlackSelectedColor" : "--squareWhiteSelectedColor");
                                 return;
                             }
-                            const changedSquares = this.board.movePiece(fromSquare.id, toSquare.id);
+                            const changedSquares = this.#chessboard.movePiece(fromSquare.id, toSquare.id);
                             if (changedSquares !== null)
-                                this.updateBoardWidget(changedSquares);
+                                this.#updateWidget(changedSquares);
                         }
-                        this.movingPiece = null;
+                        this.#movingPiece = null;
                     }.bind(this);
                 }.bind(this);
             }
         }
 
-        updateBoardWidget(changedSquares = null, animate = false) {
+        #updateWidget(changedSquares = null, animate = false) {
             if (changedSquares === null) {
-                for (const squareWidget of this.root.children)
-                    this.updateSquareWidget(squareWidget.id);
+                for (const squareWidget of this.#root.children)
+                    this.#updateSquareWidget(squareWidget.id);
                 return;
             }
 
             const animationTime = Number(getStyleRoot().getPropertyValue("--animationTime").slice(0, -2));
             
             const updateChangedSquareWidgets = function(changedSquare, animate) {
-                this.updateSquareWidget(changedSquare.fromId);
+                this.#updateSquareWidget(changedSquare.fromId);
                 if (changedSquare.id !== changedSquare.fromId)
-                    this.updateSquareWidget(changedSquare.id, animate ? changedSquare.fromId : null);
+                    this.#updateSquareWidget(changedSquare.id, animate ? changedSquare.fromId : null);
             }.bind(this);
             
             if (animate) {
@@ -253,34 +260,34 @@ customElements.define("chessboard-widget",
             if (changedSquares[0].promote === true) {
                 const promoteSquareId = changedSquares[0].id;
                 if (animate === true)
-                    setTimeout(function() { this.showPromoteDialog(promoteSquareId); }.bind(this), animationTime);
+                    setTimeout(function() { this.#showPromoteDialog(promoteSquareId); }.bind(this), animationTime);
                 else
-                    this.showPromoteDialog(promoteSquareId);
+                    this.#showPromoteDialog(promoteSquareId);
             }
         }
 
-        showPromoteDialog(squareId) {
+        #showPromoteDialog(squareId) {
             const promoteDialogArea = document.createElement("div");
             promoteDialogArea.id = "promoteDialogArea";
-            this.root.appendChild(promoteDialogArea);
+            this.#root.appendChild(promoteDialogArea);
         
             const promoteDialog = document.createElement("div");
             promoteDialog.id = "promoteDialog";
-            const squareClientRect = this.getSquareWidget(squareId).getBoundingClientRect();
+            const squareClientRect = this.#getSquareWidget(squareId).getBoundingClientRect();
             const boardClientRect = this.getBoundingClientRect();
             promoteDialog.style.left = (squareClientRect.x - boardClientRect.x)/boardClientRect.width*100 + "%";
             promoteDialog.style.width = squareClientRect.width/boardClientRect.width*100 + "%";
             if (Chessboard.squareIdToY(squareId) < 4) {
-                const topSquareClientRect = this.getSquareWidget(Chessboard.squareXyToId(Chessboard.squareIdToX(squareId), Chessboard.squareIdToY(squareId) + 3)).getBoundingClientRect();
+                const topSquareClientRect = this.#getSquareWidget(Chessboard.squareXyToId(Chessboard.squareIdToX(squareId), Chessboard.squareIdToY(squareId) + 3)).getBoundingClientRect();
                 promoteDialog.style.top = (topSquareClientRect.y - boardClientRect.y)/boardClientRect.height*100 + "%";
                 promoteDialog.style.height = (squareClientRect.y + squareClientRect.height - topSquareClientRect.y)/boardClientRect.height*100 + "%";
             }
             else {
-                const bottomSquareClientRect = this.getSquareWidget(Chessboard.squareXyToId(Chessboard.squareIdToX(squareId), Chessboard.squareIdToY(squareId) - 3)).getBoundingClientRect();
+                const bottomSquareClientRect = this.#getSquareWidget(Chessboard.squareXyToId(Chessboard.squareIdToX(squareId), Chessboard.squareIdToY(squareId) - 3)).getBoundingClientRect();
                 promoteDialog.style.top = (squareClientRect.y - boardClientRect.y)/boardClientRect.height*100 + "%";
                 promoteDialog.style.height = (bottomSquareClientRect.y + bottomSquareClientRect.height - squareClientRect.y)/boardClientRect.height*100 + "%";
             }
-            const pieceTypes = this.board.getPiece(squareId).isBlack() ? "nbrq" : "QRBN";
+            const pieceTypes = this.#chessboard.getPiece(squareId).isBlack() ? "nbrq" : "QRBN";
             for (let i = 0; i < 4; ++i) {
                 const pieceType = pieceTypes[i];
                 const pieceWidget = document.createElement("chesspiece-widget");
@@ -288,9 +295,9 @@ customElements.define("chessboard-widget",
                 pieceWidget.type = pieceType;
                 pieceWidget.style.top = String(25*i) + "%";
                 pieceWidget.onclick = function(e) {
-                    this.board.getPiece(squareId).type = pieceType;
-                    this.updateSquareWidget(squareId);
-                    this.root.removeChild(promoteDialogArea);
+                    this.#chessboard.getPiece(squareId).type = pieceType;
+                    this.#updateSquareWidget(squareId);
+                    this.#root.removeChild(promoteDialogArea);
                 }.bind(this);
                 pieceWidget.onpointerdown = function(e) {
                     e.stopPropagation();
@@ -308,5 +315,11 @@ customElements.define("chessboard-widget",
             };
             promoteDialogArea.appendChild(promoteDialog);
         }
+
+        #chessboard = null;
+        #root = null;
+        static #styleSheet = null;
+        static #styleSheetRefs = 0;
+        #movingPiece = null;
     }
 );

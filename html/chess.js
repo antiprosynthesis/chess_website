@@ -1,7 +1,9 @@
 export class ChessPiece {
+    type = null;
+    moved = false;
+
     constructor(type) {
         this.type = type;
-        this.moved = false;
     }
 
     static isBlack(type) {
@@ -35,12 +37,11 @@ export class ChessPiece {
 }
 
 export class Chessboard {
-    constructor() {
-        this.squares = [];
+    blacksTurn = false;
+
+    constructor(rows = 8, columns = 8) {
         for (let i = 0; i < 8*8; ++i)
-            this.squares.push(null);
-        this.enPassantPawnSquareId = null;
-        this.blacksTurn = false;
+            this.#squares.push(null);
     }
 
     movePiece(squareId, toSquareId, testOnly = false, allowCheck = false, allowCastling = true, allowEnPassant = true) {
@@ -50,10 +51,10 @@ export class Chessboard {
         const squareY = Chessboard.squareIdToY(squareId);
         const toSquareX = Chessboard.squareIdToX(toSquareId);
         const toSquareY = Chessboard.squareIdToY(toSquareId);
-        const piece = this.squares[Chessboard.squareXyToIndex(squareX, squareY)];
+        const piece = this.#squares[Chessboard.squareXyToIndex(squareX, squareY)];
         if (piece === null)
             return null; // no piece to move
-        const toPiece = this.squares[Chessboard.squareXyToIndex(toSquareX, toSquareY)];
+        const toPiece = this.#squares[Chessboard.squareXyToIndex(toSquareX, toSquareY)];
         if ((toPiece !== null) && (piece.isBlack() === toPiece.isBlack()))
             return null; // can't move to square with same color piece
         if (allowCastling && ((piece.type === "K") || (piece.type === "k")) && (Math.abs(toSquareX - squareX) === 2) && (toSquareY === squareY)) {
@@ -61,13 +62,13 @@ export class Chessboard {
                 return null; // can't castle because king already moved
             const dSquareX = toSquareX - squareX;
             const rookSquareX = (dSquareX < 0) ? 0 : 7;
-            const rookPiece = this.squares[Chessboard.squareXyToIndex(rookSquareX, squareY)];
+            const rookPiece = this.#squares[Chessboard.squareXyToIndex(rookSquareX, squareY)];
             if ((rookPiece === null) || (rookPiece.type !== ((piece.type === "k") ? "r" : "R")))
                 return null; // can't castle because no rook at edge of board
             if (rookPiece.moved)
                 return null; // can't castle because rook already moved
             for (let x = Math.min(squareX, rookSquareX) + 1, x1 = Math.max(squareX, rookSquareX) - 1; x <= x1; ++x) {
-                if (this.squares[Chessboard.squareXyToIndex(x, squareY)] !== null)
+                if (this.#squares[Chessboard.squareXyToIndex(x, squareY)] !== null)
                     return null; // can't castle because pieces in the way
             }
             if (this.getAttackers(squareId).length !== 0)
@@ -75,46 +76,46 @@ export class Chessboard {
             for (let x = (dSquareX < 0) ? toSquareX : (squareX + 1), x1 = (dSquareX < 0) ? (squareX - 1) : toSquareX; x <= x1; ++x) {
                 const attackers = this.getAttackers(Chessboard.squareXyToId(x, squareY));
                 for (const attacker of attackers) {
-                    if (this.squares[Chessboard.squareIdToIndex(attacker)].isBlack() !== piece.isBlack())
+                    if (this.#squares[Chessboard.squareIdToIndex(attacker)].isBlack() !== piece.isBlack())
                         return null; // can't castle because one or more target squares are in check
                 }
             }
             const toRookSquareX = (dSquareX < 0) ? (toSquareX + 1) : (toSquareX - 1);
             if (!testOnly) {
-                this.squares[Chessboard.squareXyToIndex(squareX, squareY)] = null;
-                this.squares[Chessboard.squareXyToIndex(toSquareX, squareY)] = piece;
+                this.#squares[Chessboard.squareXyToIndex(squareX, squareY)] = null;
+                this.#squares[Chessboard.squareXyToIndex(toSquareX, squareY)] = piece;
                 piece.moved = true;
-                this.squares[Chessboard.squareXyToIndex(rookSquareX, squareY)] = null;
-                this.squares[Chessboard.squareXyToIndex(toRookSquareX, squareY)] = rookPiece;
+                this.#squares[Chessboard.squareXyToIndex(rookSquareX, squareY)] = null;
+                this.#squares[Chessboard.squareXyToIndex(toRookSquareX, squareY)] = rookPiece;
                 rookPiece.moved = true;
-                this.enPassantPawnSquareId = null;
+                this.#enPassantPawnSquareId = null;
                 this.blacksTurn = !this.blacksTurn;
             }
             return [{id: toSquareId, fromId: squareId}, {id: Chessboard.squareXyToId(toRookSquareX, squareY), fromId: Chessboard.squareXyToId(rookSquareX, squareY)}];
         }
-        if (allowEnPassant && ((piece.type === "P") || (piece.type === "p")) && (this.enPassantPawnSquareId !== null)) {
-            const enPassantPawnSquareX = Chessboard.squareIdToX(this.enPassantPawnSquareId);
-            const enPassantPawnSquareY = Chessboard.squareIdToY(this.enPassantPawnSquareId);
-            const enPassantPawn = this.squares[Chessboard.squareXyToIndex(enPassantPawnSquareX, enPassantPawnSquareY)];
+        if (allowEnPassant && ((piece.type === "P") || (piece.type === "p")) && (this.#enPassantPawnSquareId !== null)) {
+            const enPassantPawnSquareX = Chessboard.squareIdToX(this.#enPassantPawnSquareId);
+            const enPassantPawnSquareY = Chessboard.squareIdToY(this.#enPassantPawnSquareId);
+            const enPassantPawn = this.#squares[Chessboard.squareXyToIndex(enPassantPawnSquareX, enPassantPawnSquareY)];
             if ((piece.isBlack() !== enPassantPawn.isBlack()) && ((squareX === (enPassantPawnSquareX - 1)) || (squareX === (enPassantPawnSquareX + 1))) && (toSquareX === enPassantPawnSquareX) && (toSquareY === (enPassantPawnSquareY + (enPassantPawn.isBlack() ? 1 : -1)))) {
                 if (!allowCheck) {
-                    this.squares[Chessboard.squareXyToIndex(squareX, squareY)] = null;
-                    this.squares[Chessboard.squareXyToIndex(toSquareX, toSquareY)] = piece;
-                    this.squares[Chessboard.squareXyToIndex(enPassantPawnSquareX, enPassantPawnSquareY)] = null;
+                    this.#squares[Chessboard.squareXyToIndex(squareX, squareY)] = null;
+                    this.#squares[Chessboard.squareXyToIndex(toSquareX, toSquareY)] = piece;
+                    this.#squares[Chessboard.squareXyToIndex(enPassantPawnSquareX, enPassantPawnSquareY)] = null;
                     const inCheck = this.isInCheck(piece.isBlack());
-                    this.squares[Chessboard.squareXyToIndex(enPassantPawnSquareX, enPassantPawnSquareY)] = enPassantPawn;
-                    this.squares[Chessboard.squareXyToIndex(toSquareX, toSquareY)] = null;
-                    this.squares[Chessboard.squareXyToIndex(squareX, squareY)] = piece;
+                    this.#squares[Chessboard.squareXyToIndex(enPassantPawnSquareX, enPassantPawnSquareY)] = enPassantPawn;
+                    this.#squares[Chessboard.squareXyToIndex(toSquareX, toSquareY)] = null;
+                    this.#squares[Chessboard.squareXyToIndex(squareX, squareY)] = piece;
                     if (inCheck)
                         return null; // move causes check
                 }
-                const enPassantPawnSquareId = this.enPassantPawnSquareId;
+                const enPassantPawnSquareId = this.#enPassantPawnSquareId;
                 if (!testOnly) {
-                    this.squares[Chessboard.squareXyToIndex(squareX, squareY)] = null;
-                    this.squares[Chessboard.squareXyToIndex(toSquareX, toSquareY)] = piece;
-                    this.squares[Chessboard.squareXyToIndex(enPassantPawnSquareX, enPassantPawnSquareY)] = null;
+                    this.#squares[Chessboard.squareXyToIndex(squareX, squareY)] = null;
+                    this.#squares[Chessboard.squareXyToIndex(toSquareX, toSquareY)] = piece;
+                    this.#squares[Chessboard.squareXyToIndex(enPassantPawnSquareX, enPassantPawnSquareY)] = null;
                     piece.moved = true;
-                    this.enPassantPawnSquareId = null;
+                    this.#enPassantPawnSquareId = null;
                     this.blacksTurn = !this.blacksTurn;
                 }
                 return [{id: toSquareId, fromId: squareId}, {id: enPassantPawnSquareId, fromId: enPassantPawnSquareId}];
@@ -134,7 +135,7 @@ export class Chessboard {
                 }
                 if ((pieceX < 0) || (pieceY < 0) || (pieceX >= 8) || (pieceY >= 8))
                     break; // out of bounds
-                if (this.squares[Chessboard.squareXyToIndex(pieceX, pieceY)] !== null)
+                if (this.#squares[Chessboard.squareXyToIndex(pieceX, pieceY)] !== null)
                     break; // piece in the way
             }
             if (valid)
@@ -143,20 +144,20 @@ export class Chessboard {
         if (!valid)
             return null; // not a valid basic move
         if (!allowCheck) {
-            const oldToPiece = this.squares[Chessboard.squareXyToIndex(toSquareX, toSquareY)];
-            this.squares[Chessboard.squareXyToIndex(squareX, squareY)] = null;
-            this.squares[Chessboard.squareXyToIndex(toSquareX, toSquareY)] = piece;
+            const oldToPiece = this.#squares[Chessboard.squareXyToIndex(toSquareX, toSquareY)];
+            this.#squares[Chessboard.squareXyToIndex(squareX, squareY)] = null;
+            this.#squares[Chessboard.squareXyToIndex(toSquareX, toSquareY)] = piece;
             const inCheck = this.isInCheck(piece.isBlack());
-            this.squares[Chessboard.squareXyToIndex(toSquareX, toSquareY)] = oldToPiece;
-            this.squares[Chessboard.squareXyToIndex(squareX, squareY)] = piece;
+            this.#squares[Chessboard.squareXyToIndex(toSquareX, toSquareY)] = oldToPiece;
+            this.#squares[Chessboard.squareXyToIndex(squareX, squareY)] = piece;
             if (inCheck)
                 return null; // move causes check
         }
         if (!testOnly) {
-            this.squares[Chessboard.squareXyToIndex(squareX, squareY)] = null;
-            this.squares[Chessboard.squareXyToIndex(toSquareX, toSquareY)] = piece;
+            this.#squares[Chessboard.squareXyToIndex(squareX, squareY)] = null;
+            this.#squares[Chessboard.squareXyToIndex(toSquareX, toSquareY)] = piece;
             piece.moved = true;
-            this.enPassantPawnSquareId = (((piece.type === "P") || (piece.type === "p")) && (toSquareX === squareX) && (Math.abs(toSquareY - squareY) == 2)) ? toSquareId : null;
+            this.#enPassantPawnSquareId = (((piece.type === "P") || (piece.type === "p")) && (toSquareX === squareX) && (Math.abs(toSquareY - squareY) == 2)) ? toSquareId : null;
             this.blacksTurn = !this.blacksTurn;
         }
         return [{id: toSquareId, fromId: squareId, promote: ((((piece.type === "P") && (toSquareY === (8 - 1))) || ((piece.type === "p") && (toSquareY === 0))))}];
@@ -166,7 +167,7 @@ export class Chessboard {
     getPossibleMoves(squareId, allowCheck = false, allowCastling = true, allowEnPassant = true) {
         const squareX = Chessboard.squareIdToX(squareId);
         const squareY = Chessboard.squareIdToY(squareId);
-        const piece = this.squares[Chessboard.squareXyToIndex(squareX, squareY)];
+        const piece = this.#squares[Chessboard.squareXyToIndex(squareX, squareY)];
         if (piece === null)
             return []; // no piece to move
         const possibleMoves = [];
@@ -179,7 +180,7 @@ export class Chessboard {
                 toSquareY += basicSteps[1];
                 if ((toSquareX < 0) || (toSquareY < 0) || (toSquareX >= 8) || (toSquareY >= 8))
                     break; // move out of bounds
-                const toPiece = this.squares[Chessboard.squareXyToIndex(toSquareX, toSquareY)];
+                const toPiece = this.#squares[Chessboard.squareXyToIndex(toSquareX, toSquareY)];
                 if (toPiece !== null) {
                     if (toPiece.isBlack() === piece.isBlack())
                         break; // can't move to square with same color piece
@@ -187,11 +188,11 @@ export class Chessboard {
                         break; // pawn can't move-capture
                 }
                 if (!allowCheck) {
-                    this.squares[Chessboard.squareXyToIndex(squareX, squareY)] = null;
-                    this.squares[Chessboard.squareXyToIndex(toSquareX, toSquareY)] = piece;
+                    this.#squares[Chessboard.squareXyToIndex(squareX, squareY)] = null;
+                    this.#squares[Chessboard.squareXyToIndex(toSquareX, toSquareY)] = piece;
                     const inCheck = this.isInCheck(piece.isBlack());
-                    this.squares[Chessboard.squareXyToIndex(toSquareX, toSquareY)] = toPiece;
-                    this.squares[Chessboard.squareXyToIndex(squareX, squareY)] = piece;
+                    this.#squares[Chessboard.squareXyToIndex(toSquareX, toSquareY)] = toPiece;
+                    this.#squares[Chessboard.squareXyToIndex(squareX, squareY)] = piece;
                     if (inCheck)
                         break; // move causes check
                 }
@@ -205,19 +206,19 @@ export class Chessboard {
                 const toSquareY = squareY + captureSteps[1];
                 if ((toSquareX < 0) || (toSquareY < 0) || (toSquareX >= 8) || (toSquareY >= 8))
                     continue; // move out of bounds
-                const toPiece = this.squares[Chessboard.squareXyToIndex(toSquareX, toSquareY)];
+                const toPiece = this.#squares[Chessboard.squareXyToIndex(toSquareX, toSquareY)];
                 if (toPiece === null)
-                    if (!allowEnPassant || (this.enPassantPawnSquareId === null) || (this.movePiece(squareId, Chessboard.squareXyToId(toSquareX, toSquareY), true, allowCheck, allowCastling, allowEnPassant) === null))
+                    if (!allowEnPassant || (this.#enPassantPawnSquareId === null) || (this.movePiece(squareId, Chessboard.squareXyToId(toSquareX, toSquareY), true, allowCheck, allowCastling, allowEnPassant) === null))
                         continue;
                 else {
                     if (toPiece.isBlack() === piece.isBlack())
                         continue; // can't capture piece of same color
                     if (!allowCheck) {
-                        this.squares[Chessboard.squareXyToIndex(squareX, squareY)] = null;
-                        this.squares[Chessboard.squareXyToIndex(toSquareX, toSquareY)] = piece;
+                        this.#squares[Chessboard.squareXyToIndex(squareX, squareY)] = null;
+                        this.#squares[Chessboard.squareXyToIndex(toSquareX, toSquareY)] = piece;
                         const inCheck = this.isInCheck(piece.isBlack());
-                        this.squares[Chessboard.squareXyToIndex(toSquareX, toSquareY)] = toPiece;
-                        this.squares[Chessboard.squareXyToIndex(squareX, squareY)] = piece;
+                        this.#squares[Chessboard.squareXyToIndex(toSquareX, toSquareY)] = toPiece;
+                        this.#squares[Chessboard.squareXyToIndex(squareX, squareY)] = piece;
                         if (inCheck)
                             continue; // move causes check
                     }
@@ -244,7 +245,7 @@ export class Chessboard {
         const attackers = [];
         const squareX = Chessboard.squareIdToX(squareId);
         const squareY = Chessboard.squareIdToY(squareId);
-        for (let i = 0; i < this.squares.length; ++i) {
+        for (let i = 0; i < this.#squares.length; ++i) {
             const fromSquareId = Chessboard.squareIndexToId(i);
             if (this.movePiece(fromSquareId, squareId, true, allowCheck, false, false) !== null)
                 attackers.push(fromSquareId);
@@ -262,8 +263,8 @@ export class Chessboard {
     }
 
     canMoveAnyPiece(black) {
-        for (let i = 0; i < this.squares.length; ++i) {
-            const piece = this.squares[i];
+        for (let i = 0; i < this.#squares.length; ++i) {
+            const piece = this.#squares[i];
             if ((piece === null) || (piece.isBlack() !== black))
                 continue;
             if (getPossibleMoves(Chessboard.squareIndexToId(i)).length !== 0)
@@ -274,8 +275,8 @@ export class Chessboard {
 
     findPiece(type) {
         const squareIds = [];
-        for (let i = 0; i < this.squares.length; ++i) {
-            const square = this.squares[i];
+        for (let i = 0; i < this.#squares.length; ++i) {
+            const square = this.#squares[i];
             if ((square !== null) && (square.type === type))
                 squareIds.push(Chessboard.squareIndexToId(i));
         }
@@ -283,10 +284,10 @@ export class Chessboard {
     }
 
     getPiece(squareId) {
-        return this.squares[Chessboard.squareIdToIndex(squareId)];
+        return this.#squares[Chessboard.squareIdToIndex(squareId)];
     }
     setPiece(squareId, piece) {
-        this.squares[Chessboard.squareIdToIndex(squareId)] = piece;
+        this.#squares[Chessboard.squareIdToIndex(squareId)] = piece;
     }
 
     static isSquareBlack(squareId) {
@@ -322,4 +323,7 @@ export class Chessboard {
     static squareIndexToId(index) {
         return Chessboard.squareXyToId(Chessboard.squareIndexToX(index), Chessboard.squareIndexToY(index));
     }
+
+    #squares = [];
+    #enPassantPawnSquareId = null;
 }
