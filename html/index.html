@@ -36,6 +36,10 @@
             else
                 pointerId = e.pointerId;
         }, true);
+        document.addEventListener("pointermove", function(e) {
+            if (e.pointerId !== pointerId)
+                e.stopPropagation();
+        }, true);
         document.addEventListener("pointerup", function(e) {
             if (e.pointerId !== pointerId)
                 e.stopPropagation();
