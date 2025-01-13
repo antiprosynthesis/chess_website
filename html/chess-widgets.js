@@ -90,6 +90,25 @@ customElements.define("chessboard-widget",
 
             this.#root.adoptedStyleSheets = [ChessboardWidget.#styleSheet];
 
+            // disable multitouch
+            let pointerId = null
+            this.addEventListener("pointerdown", function(e) {
+                if (pointerId !== null)
+                    e.stopPropagation();
+                else
+                    pointerId = e.pointerId;
+            }, true);
+            this.addEventListener("pointermove", function(e) {
+                if (e.pointerId !== pointerId)
+                    e.stopPropagation();
+            }, true);
+            this.addEventListener("pointerup", function(e) {
+                if (e.pointerId !== pointerId)
+                    e.stopPropagation();
+                else
+                    pointerId = null;
+            }, true);
+
             for (let y = 0; y < 8; ++y) {
                 for (let x = 0; x < 8; ++x) {
                     const squareWidget = document.createElement("div");
