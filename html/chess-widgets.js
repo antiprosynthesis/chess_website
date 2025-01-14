@@ -189,8 +189,9 @@ customElements.define("chessboard-widget",
                     }.bind(this);
                     pieceWidget.ontransitionend = function(e)
                     {
-                        while (squareWidget.children.length > 1)
-                            squareWidget.firstElementChild.remove();
+                        const pieceWidgets = squareWidget.querySelectorAll("chesspiece-widget");
+                        for (let i = 0; i < (pieceWidgets.length - 1); ++i)
+                            pieceWidgets[i].remove();
                         this.style.pointerEvents = "";
                         pieceWidget.style.zIndex = "";
                     }.bind(this);
@@ -244,7 +245,8 @@ customElements.define("chessboard-widget",
                         this.#movingPiece.style.zIndex = "";
                         //this.#movingPiece.style.cursor = "grab";
                         let toSquare = null;
-                        for (const squareWidget of this.#root.children) {
+                        const squareWidgets = this.#root.querySelectorAll(".square");
+                        for (const squareWidget of squareWidgets) {
                             const squareWidgetClientRect = squareWidget.getBoundingClientRect();
                             if ((e.clientX >= squareWidgetClientRect.left) && (e.clientX < squareWidgetClientRect.right) && (e.clientY >= squareWidgetClientRect.top) && (e.clientY < squareWidgetClientRect.bottom)) {
                                 toSquare = squareWidget;
@@ -267,9 +269,10 @@ customElements.define("chessboard-widget",
         }
 
         #updateWidget(changedSquares = null, animate = false) {
-            if (changedSquares === null) {
-                for (const squareWidget of this.#root.children)
-                    this.#updateSquareWidget(squareWidget.id);
+            if (changedSquares === null) {        
+                for (let y = 0; y < this.#chessboard.yCount; ++y)
+                    for (let x = 0; x < this.#chessboard.xCount; ++x)
+                        this.#updateSquareWidget(Chessboard.squareXyToId(x, y));
                 return;
             }
 
