@@ -40,7 +40,7 @@ customElements.define("chessboard-widget",
 
             if (ChessboardWidget.#styleSheetRefs++ === 0) {
                 ChessboardWidget.#styleSheet = new CSSStyleSheet();
-                ChessboardWidget.#styleSheet.replace(/*css*/`
+                ChessboardWidget.#styleSheet.replaceSync(/*css*/`
                     :host {
                         position: relative;
                         touch-action: none;
@@ -98,28 +98,17 @@ customElements.define("chessboard-widget",
             }
             this.#root.adoptedStyleSheets = [ChessboardWidget.#styleSheet];
 
-            if (this.#chessboard.xCount !== 8) {
-                let styleValueString = "";
-                for (let i = 0; i < this.#chessboard.xCount; ++i) {
-                    if (i > 0)
-                        styleValueString += " ";
-                    styleValueString += "auto"
-                }
-                this.style["grid-template-columns"] = styleValueString;
+            if ((this.#chessboard.xCount !== 8) || (this.#chessboard.yCount !== 8)) {
+                let styleSheet = new CSSStyleSheet();
+                styleSheet.replaceSync(/*css*/`
+                    :host {
+                        aspect-ratio: ${this.#chessboard.xCount/this.#chessboard.yCount};
+                        grid-template-columns:${" auto".repeat(this.#chessboard.xCount)};
+                        grid-template-rows:${" auto".repeat(this.#chessboard.yCount)};
+                    }
+                `);
+                this.#root.adoptedStyleSheets.push(styleSheet);
             }
-
-            if (this.#chessboard.yCount !== 8) {
-                let styleValueString = "";
-                for (let i = 0; i < this.#chessboard.yCount; ++i) {
-                    if (i > 0)
-                        styleValueString += " ";
-                    styleValueString += "auto"
-                }
-                this.style["grid-template-rows"] = styleValueString;
-            }
-
-            if (this.#chessboard.xCount !== this.#chessboard.yCount)
-                this.style["aspect-ratio"] = this.#chessboard.xCount/this.#chessboard.yCount;
 
             for (let y = 0; y < this.#chessboard.yCount; ++y) {
                 for (let x = 0; x < this.#chessboard.xCount; ++x) {
