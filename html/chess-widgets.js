@@ -1,4 +1,6 @@
 import { Chessboard, ChessPiece } from "./chess.js";
+import { disableMultitouch } from "./disablemultitouch.js";
+
 
 customElements.define("chesspiece-widget",
     class ChessPieceWidget extends HTMLElement {
@@ -21,14 +23,20 @@ customElements.define("chesspiece-widget",
     }
 );
 
+
 customElements.define("chessboard-widget",
     class ChessboardWidget extends HTMLElement {
         constructor() {
             super();
+            disableMultitouch(this);
         }
 
         connectedCallback() {
-            this.#root = this.attachShadow({ mode: "closed" });
+            if (this.#chessboard === null)
+                return;
+
+            if (this.#root === null)
+                this.#root = this.attachShadow({ mode: "closed" });
 
             if (ChessboardWidget.#styleSheetRefs++ === 0) {
                 ChessboardWidget.#styleSheet = new CSSStyleSheet();
@@ -41,6 +49,7 @@ customElements.define("chessboard-widget",
                         max-height: 100%;
                         display: grid;
                         grid-template-columns: auto auto auto auto auto auto auto auto;
+                        grid-template-rows: auto auto auto auto auto auto auto auto;
                         caret-color: transparent;
                     }
                     .square {
@@ -87,32 +96,35 @@ customElements.define("chessboard-widget",
                     }
                 `);
             }
-
             this.#root.adoptedStyleSheets = [ChessboardWidget.#styleSheet];
 
-            // disable multitouch
-            let pointerId = null
-            this.addEventListener("pointerdown", function(e) {
-                if (pointerId !== null)
-                    e.stopPropagation();
-                else
-                    pointerId = e.pointerId;
-            }, true);
-            this.addEventListener("pointermove", function(e) {
-                if (e.pointerId !== pointerId)
-                    e.stopPropagation();
-            }, true);
-            this.addEventListener("pointerup", function(e) {
-                if (e.pointerId !== pointerId)
-                    e.stopPropagation();
-                else
-                    pointerId = null;
-            }, true);
+            if (this.#chessboard.xCount !== 8) {
+                let styleValueString = "";
+                for (let i = 0; i < this.#chessboard.xCount; ++i) {
+                    if (i > 0)
+                        styleValueString += " ";
+                    styleValueString += "auto"
+                }
+                this.style["grid-template-columns"] = styleValueString;
+            }
 
-            for (let y = 0; y < 8; ++y) {
-                for (let x = 0; x < 8; ++x) {
+            if (this.#chessboard.yCount !== 8) {
+                let styleValueString = "";
+                for (let i = 0; i < this.#chessboard.yCount; ++i) {
+                    if (i > 0)
+                        styleValueString += " ";
+                    styleValueString += "auto"
+                }
+                this.style["grid-template-rows"] = styleValueString;
+            }
+
+            if (this.#chessboard.xCount !== this.#chessboard.yCount)
+                this.style["aspect-ratio"] = this.#chessboard.xCount/this.#chessboard.yCount;
+
+            for (let y = 0; y < this.#chessboard.yCount; ++y) {
+                for (let x = 0; x < this.#chessboard.xCount; ++x) {
                     const squareWidget = document.createElement("div");
-                    squareWidget.id = Chessboard.squareXyToId(x, 8 - 1 - y);
+                    squareWidget.id = Chessboard.squareXyToId(x, this.#chessboard.yCount - 1 - y);
                     squareWidget.className = "square " + (Chessboard.isSquareBlack(squareWidget.id) ? "black" : "white");
                     this.#root.appendChild(squareWidget);
                 }
@@ -120,19 +132,26 @@ customElements.define("chessboard-widget",
 
             this.#movingPiece = null;
 
-            if (this.#chessboard !== null)
-                this.#updateWidget();
+            this.#updateWidget();
         }
         
         disconnectedCallback() {
+            if (this.#chessboard === null)
+                return;
+            this.#root.replaceChildren();            
+            this.#root.adoptedStyleSheets = [];
             if (--ChessboardWidget.#styleSheetRefs === 0)
                 ChessboardWidget.#styleSheet = null;
         }
 
         set chessboard(newChessboard) {
+            if (this.#chessboard === newChessboard)
+                return;
+            if (this.isConnected)
+                this.disconnectedCallback();
             this.#chessboard = newChessboard;
             if (this.isConnected)
-                this.#updateWidget();
+                this.connectedCallback();
         }
 
         #getSquareWidget(id) {

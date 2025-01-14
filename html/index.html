@@ -3,6 +3,7 @@
 <head>
     <title>Chess Tutor</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto">
     <style>
         :root {
             --backgroundColor: hsl(0, 0%, 25%);
@@ -13,14 +14,16 @@
             --animationTime: 200ms; /* must be in ms */
         }
         body {
+            width: 100vw;
+            height: 100vh;
             overflow: hidden;
             margin: 0px;
             background-color: var(--backgroundColor);
+            font-family: "Roboto" sans-serif;
         }
         #chessboardArea {
-            position: relative;
-            width: 100vw;
-            height: 100vh;
+            width: 100%;
+            height: 100%;
         }
     </style>
 </head>
@@ -32,8 +35,6 @@
         import "./chess-widgets.js";
 
         const chessboard = new Chessboard();
-        // chessboard.setPiece("c7", new ChessPiece("P"));
-        // chessboard.setPiece("d2", new ChessPiece("p"));
         chessboard.setPiece("a1", new ChessPiece("R"));
         chessboard.setPiece("b1", new ChessPiece("N"));
         chessboard.setPiece("c1", new ChessPiece("B"));
